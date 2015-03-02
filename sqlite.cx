@@ -3,6 +3,7 @@
 class server : implements={dispatcher}::
     void onDeclare() observer
     void onDefine() observer
+    void onUpdate() observer
     thread: word, private|local // Thread in which the server will run
     events: list{event}, private|local
     int16 construct()

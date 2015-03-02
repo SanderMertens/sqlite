@@ -29,6 +29,9 @@ cx_void sqlite_server_onDeclare(sqlite_server _this, cx_object *observable, cx_o
 /* ::cortex::sqlite::server::onDefine() */
 cx_void sqlite_server_onDefine(sqlite_server _this, cx_object *observable, cx_object *source);
 
+/* ::cortex::sqlite::server::onUpdate() */
+cx_void sqlite_server_onUpdate(sqlite_server _this, cx_object *observable, cx_object *source);
+
 /* ::cortex::sqlite::server::post(event e) */
 cx_void sqlite_server_post(sqlite_server _this, cx_event e);
 

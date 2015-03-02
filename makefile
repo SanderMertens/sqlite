@@ -1,6 +1,6 @@
 
 TARGET = sqlite
-INCLUDE = $(CORTEX_HOME)/dev/include $(CORTEX_HOME)/interface/sqlite/include
+INCLUDE = $(CORTEX_HOME)/dev/include $(CORTEX_HOME)/interface/sqlite/include ./sqlite3
 LIBS   = lang cortexdev sqliteserializer
 
 
