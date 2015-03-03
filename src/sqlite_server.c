@@ -12,7 +12,6 @@
 /* $header() */
 #include "cx_files.h"
 #include "ser_sqlite.h"
-#include "sqlite.h"
 #include <sqlite3.h>
 
 static const char filename[] = "db.sqlite";
@@ -39,7 +38,7 @@ static cx_void bootstrapDatabase(void) {
     char *errorMessage = NULL;
     sqlite3 *db;
     if (sqlite3_open(filename, &db) != SQLITE_OK) {
-        cx_error((char *)sqlite3_errmsg(db));
+        cx_critical("%s", sqlite3_errmsg(db));
     }
     if (sqlite3_exec(db, bootstrap, NULL, NULL, &errorMessage) != SQLITE_OK) {
         cx_critical(errorMessage);
@@ -53,16 +52,16 @@ static cx_void bootstrapDatabase(void) {
 /* ::cortex::sqlite::server::construct() */
 cx_int16 sqlite_server_construct(sqlite_server _this) {
 /* $begin(::cortex::sqlite::server::construct) */
+    if (!cx_fileTest(filename)) {
+        cx_touch(filename);
+    }
+    bootstrapDatabase();
     sqlite_server_onDeclare_o->mask = CX_ON_DECLARE | CX_ON_SCOPE | CX_ON_SELF;
     sqlite_server_onDefine_o->mask = CX_ON_DEFINE | CX_ON_SCOPE | CX_ON_SELF;
     sqlite_server_onUpdate_o->mask = CX_ON_UPDATE | CX_ON_SCOPE | CX_ON_SELF;
     cx_listen(root_o, sqlite_server_onDeclare_o, _this);
     cx_listen(root_o, sqlite_server_onDefine_o, _this);
     cx_listen(root_o, sqlite_server_onUpdate_o, _this);
-    if (!cx_fileTest(filename)) {
-        cx_touch(filename);
-    }
-    bootstrapDatabase();
     return 0;
 /* $end */
 }
@@ -71,7 +70,6 @@ cx_int16 sqlite_server_construct(sqlite_server _this) {
 cx_void sqlite_server_destruct(sqlite_server _this) {
 /* $begin(::cortex::sqlite::server::destruct) */
     CX_UNUSED(_this);
-    sqlite3_close(db);
 /* $end */
 }
 
@@ -87,16 +85,17 @@ cx_void sqlite_server_onDeclare(sqlite_server _this, cx_object *observable, cx_o
         cx_sqlite_ser_t sqlData = {NULL, NULL, 0, 0, 0};
         cx_serialize(&serializer, source, &sqlData);
         if (sqlite3_open(filename, &db) != SQLITE_OK) {
-            cx_error((char *)sqlite3_errmsg(db));
+            cx_critical((char *)sqlite3_errmsg(db));
         }
         if (sqlite3_exec(db, sqlData.buffer, NULL, NULL, &errMsg) != SQLITE_OK) {
-            cx_error((char *)sqlite3_errmsg(db));
-            cx_error(errMsg);
+            cx_critical((char *)sqlite3_errmsg(db));
+            cx_critical(errMsg);
             sqlite3_free(errMsg);
         }
         if (sqlite3_close(db) != SQLITE_OK) {
-            cx_error("error closing database");
+            cx_critical("error closing database");
         }
+        cx_debug(sqlData.buffer);
     }
 /* $end */
 }
