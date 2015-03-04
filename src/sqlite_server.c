@@ -35,14 +35,18 @@ static cx_bool isBlacklisted(cx_object *o) {
 static cx_void bootstrapDatabase(void) {
     // TODO GET THIS FROM bootstrap.sql
     const char bootstrap[] = "CREATE TABLE IF NOT EXISTS Objects (Name TEXT, Parent NUMERIC, FOREIGN KEY(Parent) REFERENCES Objects(Oid) );";
-    char *errorMessage = NULL;
+    char *errMsg = NULL;
     sqlite3 *db;
     if (sqlite3_open(filename, &db) != SQLITE_OK) {
         cx_critical("%s", sqlite3_errmsg(db));
     }
-    if (sqlite3_exec(db, bootstrap, NULL, NULL, &errorMessage) != SQLITE_OK) {
-        cx_critical(errorMessage);
-        sqlite3_free(errorMessage);
+    if (sqlite3_exec(db, "PRAGMA foreign_keys = ON;", NULL, NULL, &errMsg) != SQLITE_OK) {
+        cx_critical(errMsg);
+        sqlite3_free(errMsg);
+    }
+    if (sqlite3_exec(db, bootstrap, NULL, NULL, &errMsg) != SQLITE_OK) {
+        cx_critical(errMsg);
+        sqlite3_free(errMsg);
     }
     sqlite3_close(db);
 }
@@ -87,6 +91,10 @@ cx_void sqlite_server_onDeclare(sqlite_server _this, cx_object *observable, cx_o
         if (sqlite3_open(filename, &db) != SQLITE_OK) {
             cx_critical((char *)sqlite3_errmsg(db));
         }
+        if (sqlite3_exec(db, "PRAGMA foreign_keys = ON;", NULL, NULL, &errMsg) != SQLITE_OK) {
+            cx_critical(errMsg);
+            sqlite3_free(errMsg);
+        }
         if (sqlite3_exec(db, sqlData.buffer, NULL, NULL, &errMsg) != SQLITE_OK) {
             cx_critical((char *)sqlite3_errmsg(db));
             cx_critical(errMsg);
@@ -105,10 +113,12 @@ cx_void sqlite_server_onDefine(sqlite_server _this, cx_object *observable, cx_ob
 /* $begin(::cortex::sqlite::server::onDefine) */
     CX_UNUSED(_this);
     CX_UNUSED(observable);
-    struct cx_serializer_s serializer = cx_sqlite_define_ser(CX_PRIVATE, CX_NOT, CX_SERIALIZER_TRACE_NEVER);
-    cx_sqlite_ser_t sqlData = {NULL, NULL, 0, 0, 0};
-    cx_serialize(&serializer, source, &sqlData);
-    printf("%s\n", sqlData.buffer);
+    if (!isBlacklisted(source)) {
+        struct cx_serializer_s serializer = cx_sqlite_define_ser(CX_PRIVATE, CX_NOT, CX_SERIALIZER_TRACE_NEVER);
+        cx_sqlite_ser_t sqlData = {NULL, NULL, 0, 0, 0};
+        cx_serialize(&serializer, source, &sqlData);
+        printf("%s\n", sqlData.buffer);
+    }
 /* $end */
 }
 
@@ -118,7 +128,7 @@ cx_void sqlite_server_onUpdate(sqlite_server _this, cx_object *observable, cx_ob
     CX_UNUSED(_this);
     CX_UNUSED(observable);
     CX_UNUSED(source);
-    printf("This is an update!\n");
+    printf("This is an update of %s!\n", cx_nameof(observable));
 /* $end */
 }
 
