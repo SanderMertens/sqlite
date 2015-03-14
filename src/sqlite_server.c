@@ -34,7 +34,13 @@ static cx_bool isBlacklisted(cx_object *o) {
 
 static cx_void bootstrapDatabase(void) {
     // TODO GET THIS FROM bootstrap.sql
-    const char bootstrap[] = "CREATE TABLE IF NOT EXISTS Objects (Name TEXT, Parent NUMERIC, FOREIGN KEY(Parent) REFERENCES Objects(Oid) );";
+    const char bootstrap[] =
+        "CREATE TABLE IF NOT EXISTS \"Objects\" ("
+        "\"ObjectId\" INTEGER PRIMARY KEY,"
+        "\"Name\" TEXT,"
+        "\"Parent\" NUMERIC REFERENCES \"Objects\"(\"ObjectId\")"
+        ");"
+        ;
     char *errMsg = NULL;
     sqlite3 *db;
     if (sqlite3_open(filename, &db) != SQLITE_OK) {
@@ -50,7 +56,6 @@ static cx_void bootstrapDatabase(void) {
     }
     sqlite3_close(db);
 }
-
 /* $end */
 
 /* ::cortex::sqlite::server::construct() */
@@ -118,6 +123,9 @@ cx_void sqlite_server_onDefine(sqlite_server _this, cx_object *observable, cx_ob
         cx_sqlite_ser_t sqlData = {NULL, NULL, 0, 0, 0};
         cx_serialize(&serializer, source, &sqlData);
         printf("%s\n", sqlData.buffer);
+    }
+    if (cx_instanceof(cx_type(cx_type_o), source)) {
+        printf("type!!! %s\n", cx_nameof(source));
     }
 /* $end */
 }
