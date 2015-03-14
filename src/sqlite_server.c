@@ -119,13 +119,17 @@ cx_void sqlite_server_onDefine(sqlite_server _this, cx_object *observable, cx_ob
     CX_UNUSED(_this);
     CX_UNUSED(observable);
     if (!isBlacklisted(source)) {
-        struct cx_serializer_s serializer = cx_sqlite_define_ser(CX_PRIVATE, CX_NOT, CX_SERIALIZER_TRACE_NEVER);
-        cx_sqlite_ser_t sqlData = {NULL, NULL, 0, 0, 0};
-        cx_serialize(&serializer, source, &sqlData);
-        printf("%s\n", sqlData.buffer);
-    }
-    if (cx_instanceof(cx_type(cx_type_o), source)) {
-        printf("type!!! %s\n", cx_nameof(source));
+        if (cx_instanceof(cx_type(cx_type_o), source)) {
+            struct cx_serializer_s serializer = cx_type_ser(CX_PRIVATE, CX_NOT, CX_SERIALIZER_TRACE_NEVER);
+            cx_sqlite_ser_t sqlData = {NULL, NULL, 0, 0, 0};
+            cx_metaWalk(&serializer, cx_type(source), &sqlData);
+            printf("%s\n", sqlData.buffer);
+        } else {
+            struct cx_serializer_s serializer = cx_sqlite_define_ser(CX_PRIVATE, CX_NOT, CX_SERIALIZER_TRACE_NEVER);
+            cx_sqlite_ser_t sqlData = {NULL, NULL, 0, 0, 0};
+            cx_serialize(&serializer, source, &sqlData);
+            printf("%s\n", sqlData.buffer);
+        }
     }
 /* $end */
 }
