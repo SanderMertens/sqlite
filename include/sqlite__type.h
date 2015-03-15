@@ -23,6 +23,7 @@ CX_LIST(cx_event_list);
 CX_CLASS(sqlite_server);
 
 CX_CLASS_DEF(sqlite_server) {
+    cx_string filename;
     cx_word thread;
     cx_event_list events;
 };

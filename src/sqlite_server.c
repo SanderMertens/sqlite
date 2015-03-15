@@ -14,7 +14,6 @@
 #include "ser_sqlite.h"
 #include <sqlite3.h>
 
-static const char filename[] = "db.sqlite";
 static sqlite3 *db;
 
 static cx_bool isBlacklisted(cx_object o) {
@@ -57,10 +56,10 @@ static cx_void bootstrapDatabase(void) {
 /* ::cortex::sqlite::server::construct() */
 cx_int16 sqlite_server_construct(sqlite_server _this) {
 /* $begin(::cortex::sqlite::server::construct) */
-    if (!cx_fileTest(filename)) {
-        cx_touch(filename);
+    if (!cx_fileTest(_this->filename)) {
+        cx_touch(_this->filename);
     }
-    if (sqlite3_open(filename, &db) != SQLITE_OK) {
+    if (sqlite3_open(_this->filename, &db) != SQLITE_OK) {
         cx_critical("%s", sqlite3_errmsg(db));
     }
     bootstrapDatabase();
@@ -93,7 +92,7 @@ cx_void sqlite_server_onDeclare(sqlite_server _this, cx_object *observable, cx_o
         cx_sqlite_ser_t sqlData = {NULL, NULL, 0, 0, 0};
         cx_serialize(&serializer, source, &sqlData);
         sqlite3 *db;
-        if (sqlite3_open(filename, &db) != SQLITE_OK) {
+        if (sqlite3_open(_this->filename, &db) != SQLITE_OK) {
             cx_critical((char *)sqlite3_errmsg(db));
         }
         if (sqlite3_exec(db, "PRAGMA foreign_keys = ON;", NULL, NULL, &errMsg) != SQLITE_OK) {
