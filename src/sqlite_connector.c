@@ -15,8 +15,6 @@
 #include "cx_files.h"
 #include "sqlite_ser.h"
 
-// static sqlite3 *db;
-
 static cx_bool isBlacklisted(cx_object o) {
     cx_bool result = FALSE;
     if (o == root_o) {

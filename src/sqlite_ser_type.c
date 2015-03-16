@@ -165,6 +165,7 @@ static cx_int16 serializeMember(cx_serializer s, cx_value *v, void *userData) {
     CX_UNUSED(s);
     struct sqlite_ser *data = userData;
     unsigned int depth;
+    cx_string memberName
     if (data->itemCount) {
         if (!cx_ser_appendstr(data, ", ")) {
             goto finished;
@@ -174,12 +175,12 @@ static cx_int16 serializeMember(cx_serializer s, cx_value *v, void *userData) {
         goto finished;
     }
     depth = data->depth;
+    memberName = cx_nameof(v->is.member.t);
     while (depth--) {
         if (!cx_ser_appendstr(data, "_")) {
             goto finished;
         }    
     }
-    cx_string memberName = cx_nameof(v->is.member.t);
     if (!cx_ser_appendstr(data, "%s\" ", memberName)) {
         goto finished;
     }
