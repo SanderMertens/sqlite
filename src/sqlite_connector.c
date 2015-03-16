@@ -96,20 +96,29 @@ cx_void sqlite_connector_onDeclare(sqlite_connector _this, cx_object *observable
     CX_UNUSED(observable);
     char *errMsg = NULL;
     if (!isBlacklisted(source)) {
+        printf("declare %s %s\n", cx_nameof(source), cx_nameof(cx_parentof(source)));
         struct cx_serializer_s serializer = sqlite_ser_declare(CX_PRIVATE, CX_NOT, CX_SERIALIZER_TRACE_NEVER);
-        sqlite_ser_t sqlData = {NULL, NULL, 0, 0, 0};
+        struct sqlite_ser sqlData = {NULL, NULL, 0, 0, 0, 0};
         cx_serialize(&serializer, source, &sqlData);
+        cx_debug(sqlData.buffer);
         if (sqlite3_exec(db, sqlData.buffer, NULL, NULL, &errMsg) != SQLITE_OK) {
             cx_critical((char *)sqlite3_errmsg(db));
             cx_critical(errMsg);
             sqlite3_free(errMsg);
         }
-        cx_debug(sqlData.buffer);
     } else if (cx_instanceof(cx_type(cx_type_o), source)) {
-        struct cx_serializer_s serializer = sqlite_ser_type(CX_PRIVATE, CX_NOT, CX_SERIALIZER_TRACE_NEVER);
-        sqlite_ser_t sqlData = {NULL, NULL, 0, 0, 0};
-        cx_metaWalk(&serializer, cx_type(source), &sqlData);
-        cx_debug(sqlData.buffer);
+        if (cx_type(source)->kind != CX_COMPOSITE || cx_interface(source)->kind != CX_INTERFACE) {
+            struct cx_serializer_s serializer = sqlite_ser_type(CX_PRIVATE, CX_NOT, CX_SERIALIZER_TRACE_NEVER);
+            struct sqlite_ser sqlData = {NULL, NULL, 0, 0, 0, 0};
+            cx_metaWalk(&serializer, cx_type(source), &sqlData);
+            cx_debug(sqlData.buffer);
+            if (sqlite3_exec(db, sqlData.buffer, NULL, NULL, &errMsg) != SQLITE_OK) {
+                cx_critical((char *)sqlite3_errmsg(db));
+                cx_critical(errMsg);
+                sqlite3_free(errMsg);
+            }
+            
+        }
     }
 /* $end */
 }
@@ -119,17 +128,29 @@ cx_void sqlite_connector_onDefine(sqlite_connector _this, cx_object *observable,
 /* $begin(::cortex::sqlite::connector::onDefine) */
     CX_UNUSED(_this);
     CX_UNUSED(source);
+    char *errmsg;
     if (!isBlacklisted(observable)) {
+        printf("define %s %s\n", cx_nameof(source), cx_nameof(cx_parentof(source)));
         if (cx_instanceof(cx_type(cx_type_o), observable)) {
             struct cx_serializer_s serializer = sqlite_ser_type(CX_PRIVATE, CX_NOT, CX_SERIALIZER_TRACE_NEVER);
-            sqlite_ser_t sqlData = {NULL, NULL, 0, 0, 0};
+            struct sqlite_ser sqlData = {NULL, NULL, 0, 0, 0, 0};
             cx_metaWalk(&serializer, cx_type(observable), &sqlData);
             printf("%s\n", sqlData.buffer); // TODO DELETE
-        } else {
+            if (sqlite3_exec(db, sqlData.buffer, NULL, NULL, &errmsg) != SQLITE_OK) {
+                cx_critical((char *)sqlite3_errmsg(db));
+                cx_critical(errmsg);
+                sqlite3_free(errmsg);
+            }
+        } else if (cx_typeof(observable)->kind != CX_VOID) {
             struct cx_serializer_s serializer = sqlite_ser_define(CX_PRIVATE, CX_NOT, CX_SERIALIZER_TRACE_NEVER);
-            sqlite_ser_t sqlData = {NULL, NULL, 0, 0, 0};
+            struct sqlite_ser sqlData = {NULL, NULL, 0, 0, 0, 0};
             cx_serialize(&serializer, observable, &sqlData);
-            printf("%s\n", sqlData.buffer);
+            printf("%s\n", sqlData.buffer); // TODO DELETE
+            if (sqlite3_exec(db, sqlData.buffer, NULL, NULL, &errmsg) != SQLITE_OK) {
+                cx_critical((char *)sqlite3_errmsg(db));
+                cx_critical(errmsg);
+                sqlite3_free(errmsg);
+            }
         }
     }
 /* $end */

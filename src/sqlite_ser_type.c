@@ -72,124 +72,141 @@ static cx_bool cx_ser_appendstr(struct sqlite_ser* data, cx_string fmt, ...) {
     return result;
 }
 
-static cx_int16 cx_ser_reference(cx_serializer s, cx_value *v, void *userData) {
+static cx_int16 serialize_primitive(cx_serializer s, cx_value *v, void *userData) {
+    CX_UNUSED(s);
+    struct sqlite_ser *data = userData;
+    switch (cx_primitive(cx_valueType(v))->kind) {
+        case CX_CHARACTER:
+            if (!cx_ser_appendstr(data, "CHAR")) {
+                goto finished;
+            }
+            break;
+        case CX_TEXT:
+            if (!cx_ser_appendstr(data, "TEXT")) {
+                goto finished;
+            }
+            break;
+        case CX_BOOLEAN:
+            if (!cx_ser_appendstr(data, "BOOL")) {
+                goto finished;
+            }
+            break;
+        case CX_BITMASK:
+            if (!cx_ser_appendstr(data, "BITMASK_INT")) {
+                goto finished;
+            }
+            break;
+        case CX_BINARY:
+            if (!cx_ser_appendstr(data, "BINARY_INT")) {
+                goto finished;
+            }
+            break;
+        case CX_INTEGER:
+            if (!cx_ser_appendstr(data, "INT")) {
+                goto finished;
+            }
+            break;
+        case CX_UINTEGER:
+            if (!cx_ser_appendstr(data, "UINT")) {
+                goto finished;
+            }
+            break;
+        case CX_FLOAT:
+            if (!cx_ser_appendstr(data, "FLOAT")) {
+                goto finished;
+            }
+            break;
+        case CX_ENUM:
+            /* if (!cx_ser_appendstr(data, "\"%s\" INTEGER REFERENCES \"%sConstant\"", */
+            if (!cx_ser_appendstr(data, "ENUM_INT")) {
+                goto finished;
+            }
+            break;
+        case CX_ALIAS:
+            if (!cx_ser_appendstr(data, "ALIAS")) {
+                goto finished;
+            }
+            cx_warning("-- CX_ALIAS not supported");
+            break;
+    }
+    return 0;
+finished:
+    return 1;
+}
+
+static cx_int16 serialize_reference(cx_serializer s, cx_value *v, void *userData) {
     CX_UNUSED(s);
     CX_UNUSED(v);
     CX_UNUSED(userData);
     return 0;
 }
 
-static cx_int16 cx_ser_item(cx_serializer s, cx_value *v, void *userData) {
+static cx_int16 serialize_base(cx_serializer s, cx_value *v, void *userData) {
+    struct sqlite_ser *_data = userData;
+    struct sqlite_ser data = *_data;
+    data.depth++;
+    cx_int16 errors;
+    errors = cx_serializeValue(s, v, &data);
+    if (errors == 1) {
+        goto finished;
+    } else if (errors == -1) {
+        goto error;
+    }
+    _data->itemCount = data.itemCount;
+    _data->buffer = data.buffer;
+    _data->ptr = data.ptr;
+    return 0;
+finished:
+    return 1;
+error:
+    return -1;
+}
+
+static cx_int16 serialize_member(cx_serializer s, cx_value *v, void *userData) {
     CX_UNUSED(s);
-    cx_type type = cx_valueType(v);
+    // cx_type type = cx_valueType(v);
     struct sqlite_ser *data = userData;
+    unsigned int depth;
     if (data->itemCount) {
         if (!cx_ser_appendstr(data, ", ")) {
             goto finished;
         }
     }
-    cx_string memberName = cx_nameof(v->is.member.t);
-    if (!cx_ser_appendstr(data, "\"%s\"", memberName)) {
+    if (!cx_ser_appendstr(data, "\"")) {
         goto finished;
     }
-    if (type->kind != CX_VOID) {
-        if (!cx_ser_appendstr(data, " ")) {
+    depth = data->depth;
+    while (depth--) {
+        if (!cx_ser_appendstr(data, "_")) {
             goto finished;
-        }
+        }    
     }
-    switch (type->kind) {
-        case CX_PRIMITIVE:
-            switch (cx_primitive(type)->kind) {
-                case CX_CHARACTER:
-                    if (!cx_ser_appendstr(data, "CHAR")) {
-                        goto finished;
-                    }
-                    break;
-                case CX_TEXT:
-                    if (!cx_ser_appendstr(data, "TEXT")) {
-                        goto finished;
-                    }
-                    break;
-                case CX_BOOLEAN:
-                    if (!cx_ser_appendstr(data, "BOOL")) {
-                        goto finished;
-                    }
-                    break;
-                case CX_BITMASK:
-                    if (!cx_ser_appendstr(data, "BITMASK_INT")) {
-                        goto finished;
-                    }
-                    break;
-                case CX_BINARY:
-                    if (!cx_ser_appendstr(data, "BINARY_INT")) {
-                        goto finished;
-                    }
-                    break;
-                case CX_INTEGER:
-                    if (!cx_ser_appendstr(data, "INT")) {
-                        goto finished;
-                    }
-                    break;
-                case CX_UINTEGER:
-                    if (!cx_ser_appendstr(data, "UINT")) {
-                        goto finished;
-                    }
-                    break;
-                case CX_FLOAT:
-                    if (!cx_ser_appendstr(data, "FLOAT")) {
-                        goto finished;
-                    }
-                    break;
-                case CX_ENUM:
-                    /* if (!cx_ser_appendstr(data, "\"%s\" INTEGER REFERENCES \"%sConstant\"", */
-                    if (!cx_ser_appendstr(data, "ENUM_INT")) {
-                        goto finished;
-                    }
-                    break;
-                case CX_ALIAS:
-                    if (!cx_ser_appendstr(data, "ALIAS")) {
-                        goto finished;
-                    }
-                    cx_warning("-- CX_ALIAS not supported");
-                    break;
-            }
-            break;
-        case CX_COMPOSITE:
-            if (!cx_ser_appendstr(data, "COMPOSITE")) {
-                goto finished;
-            }
-            // cx_serializeValue(s, v, userData);
-            break;
-        case CX_COLLECTION:
-            if (!cx_ser_appendstr(data, "COLLECTION")) {
-                goto finished;
-            }
-            break;
-        case CX_VOID:
-            break;
-        case CX_ITERATOR:
-            if (!cx_ser_appendstr(data, "ITERATOR")) {
-                goto finished;
-            }
-            cx_warning("-- CX_ITERATOR should not be serialized");
-            break;
-        case CX_ANY:
-            if (!cx_ser_appendstr(data, "ANY")) {
-                goto finished;
-            }
-            cx_critical("-- CX_ANY should not be serialized");
-            break;
+    cx_string memberName = cx_nameof(v->is.member.t);
+    if (!cx_ser_appendstr(data, "%s\" ", memberName)) {
+        goto finished;
     }
+    cx_serializeValue(s, v, data);
     data->itemCount++;
     return 0;
 finished:
     return 1;
 }
 
+// static cx_int16 serialize_composite(cx_serializer s, cx_value* v, void* userData) {
+//     // CX_UNUSED(s);
+//     // CX_UNUSED(v);
+//     // CX_UNUSED(userData);
+//     // if (!cx_ser_appendstr(data, "COMPOSITE")) {
+//     //     goto finished;
+//     // }
+//     cx_serializeValue(s, v, userData);
+//     return 0;
+// }
 
-static cx_int16 cx_ser_object(cx_serializer s, cx_value* v, void* userData) {
+
+static cx_int16 serialize_object(cx_serializer s, cx_value* v, void* userData) {
     struct sqlite_ser *data = userData;
-    cx_type type = cx_valueType(v);
+    // cx_type type = cx_valueType(v);
     // TODO put fully scoped name with underscores
     cx_id fullname;
     cx_fullname(cx_valueType(v), fullname);
@@ -197,42 +214,33 @@ static cx_int16 cx_ser_object(cx_serializer s, cx_value* v, void* userData) {
     if (!cx_ser_appendstr(data, "CREATE TABLE IF NOT EXISTS \"%s\""
             " (\"ObjectId\" INTEGER",
             fullname)) {
-            // cx_nameof(cx_valueType(v)))) {
         goto finished;
     }
-    switch (type->kind) {
-        case CX_PRIMITIVE:
-            switch (cx_primitive(type)->kind) {
-                case CX_ENUM:
-                    if (!cx_ser_appendstr(data, ", \"Value\" INTEGER")) {
-                        goto finished;
-                    }
-                    break;
-                case CX_BITMASK:
-                    if (!cx_ser_appendstr(data, ", \"Value\" INTEGER")) {
-                        goto finished;
-                    }
-                    break;
-                default:
-                    break;
-            }
-            break;
+    cx_bool shouldSerialize = FALSE;
+    switch (cx_valueType(v)->kind) {
         case CX_COMPOSITE:
             if (!cx_ser_appendstr(data, ", ")) {
                 goto finished;
             }
-            cx_serializeValue(s, v, data);
+            shouldSerialize = TRUE;
             break;
-        case CX_COLLECTION:
-            cx_warning("-- collection serialization not yet supported");
+        case CX_PRIMITIVE:
+            if (!cx_ser_appendstr(data, ", \"Value\" ")) {
+                goto finished;
+            }
+            shouldSerialize = TRUE;
             break;
-        case CX_VOID:
+        default:
+            cx_warning("ok this is not nice");
             break;
-        case CX_ANY:
-            break;
-        case CX_ITERATOR:
-            cx_critical("-- CX_ITERATOR not serializable");
-            break;
+    }
+    // if (cx_valueType(v)->kind == CX_PRIMITIVE) {
+    //     if (!cx_ser_appendstr(data, "\"Value\" ")) {
+    //         goto finished;
+    //     }
+    // }
+    if (shouldSerialize) {
+        cx_serializeValue(s, v, userData);
     }
     if (!cx_ser_appendstr(data, ");")) {
         goto finished;
@@ -249,11 +257,14 @@ struct cx_serializer_s sqlite_ser_type(cx_modifier access, cx_operatorKind acces
     s.access = access;
     s.accessKind = accessKind;
     s.traceKind = trace;
-    s.reference = cx_ser_reference;
-    s.metaprogram[CX_ELEMENT] = cx_ser_item;
+    s.reference = serialize_reference;
+    s.program[CX_PRIMITIVE] = serialize_primitive;
+    s.program[CX_COLLECTION] = NULL;
+    // s.program[CX_COMPOSITE] = serialize_composite;
+    // s.metaprogram[CX_ELEMENT] = serialize_member;
  
-    s.metaprogram[CX_MEMBER] = cx_ser_item;
-    // s.metaprogram[CX_BASE] = cx_ser_base;
-    s.metaprogram[CX_OBJECT] = cx_ser_object;
+    s.metaprogram[CX_MEMBER] = serialize_member;
+    s.metaprogram[CX_BASE] = serialize_base;
+    s.metaprogram[CX_OBJECT] = serialize_object;
     return s;
 }

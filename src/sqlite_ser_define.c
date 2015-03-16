@@ -147,7 +147,7 @@ static cx_int16 cx_ser_primitive(cx_serializer s, cx_value *v, void *userData) {
         case CX_BOOLEAN:
             {
                 cx_bool *b = cx_valueValue(v);
-                if (!cx_ser_appendstr(data, "%s", (*b) ? "1" : "0")) {
+                if (!cx_ser_appendstr(data, "%s", (*b) ? "88" : "77")) {
                     goto finished;
                 }
                 
@@ -193,6 +193,7 @@ finished:
 
 static cx_int16 cx_ser_item(cx_serializer s, cx_value *v, void *userData) {
     struct sqlite_ser *data = userData;
+    printf("%s - %d\n", cx_nameof(v->is.member.t), data->itemCount);
     if (data->itemCount) {
         if (!cx_ser_appendstr(data, ", ")) {
             goto finished;
@@ -206,34 +207,51 @@ finished:
 }
 
 static cx_int16 cx_ser_composite(cx_serializer s, cx_value* v, void* userData) {
-    struct sqlite_ser data = *(struct sqlite_ser*)userData;
-    data.itemCount = 0;
+    struct sqlite_ser *_data = userData;
+    struct sqlite_ser data = *_data;
+    // data.itemCount = 0;
     if (cx_serializeMembers(s, v, &data)) {
         goto error;
     }
-    ((struct sqlite_ser*)userData)->buffer = data.buffer;
-    ((struct sqlite_ser*)userData)->ptr = data.ptr;
+    _data->itemCount = data.itemCount;
+    _data->buffer = data.buffer;
+    _data->ptr = data.ptr;
     return 0;
 error:
     return -1;
 }
 
-static cx_int16 cx_ser_base(cx_serializer s, cx_value* v, void* userData) {
+static cx_int16 cx_ser_collection(cx_serializer s, cx_value* v, void* userData) {
     CX_UNUSED(s);
     CX_UNUSED(v);
-    CX_UNUSED(userData);
+    struct sqlite_ser *_data = userData;
+    struct sqlite_ser data = *_data;
+    if (!cx_ser_appendstr(&data, " NULL ")) {
+        goto finished;
+    }
+    _data->itemCount = data.itemCount;
+    _data->buffer = data.buffer;
+    _data->ptr = data.ptr;
     return 0;
+finished:
+    return 1;
+// error:
+    // return -1;
 }
 
-/*
- * It should be responsibility of the underlying value kind to add
- * "(column1, column2) VALUES (value1, value2)".
- */
+// static cx_int16 cx_ser_base(cx_serializer s, cx_value* v, void* userData) {
+//     CX_UNUSED(s);
+//     CX_UNUSED(v);
+//     CX_UNUSED(userData);
+//     return 0;
+// }
+
 static cx_int16 cx_ser_object(cx_serializer s, cx_value* v, void* userData) {
     struct sqlite_ser *data = userData;
     cx_object *o = cx_valueObject(v);
-    if (!cx_ser_appendstr(data, "INSERT INTO \"%s\" VALUES (NULL, ",
-            cx_nameof(cx_valueType(v)))) {
+    cx_id columnName;
+    cx_fullname(cx_typeof(o), columnName);
+    if (!cx_ser_appendstr(data, "INSERT INTO \"%s\" VALUES (NULL, ", columnName)) {
         goto finished;
     }
     cx_serializeValue(s, v, data);
@@ -258,9 +276,10 @@ struct cx_serializer_s sqlite_ser_define(cx_modifier access, cx_operatorKind acc
     s.program[CX_PRIMITIVE] = cx_ser_primitive;
     s.reference = cx_ser_reference;
     s.program[CX_COMPOSITE] = cx_ser_composite;
-    s.metaprogram[CX_ELEMENT] = cx_ser_item;
+    s.program[CX_COLLECTION] = cx_ser_collection;
+    // s.metaprogram[CX_ELEMENT] = cx_ser_item;
     s.metaprogram[CX_MEMBER] = cx_ser_item;
-    s.metaprogram[CX_BASE] = cx_ser_base;
+    // s.metaprogram[CX_BASE] = cx_ser_base;
     s.metaprogram[CX_OBJECT] = cx_ser_object;
     return s;
 }

@@ -22,15 +22,12 @@ static cx_bool cx_ser_appendstrbuff(struct sqlite_ser* data, char* str) {
         data->ptr = data->buffer;
     } else {
         cx_uint32 length, bufferLength;
-
         if (!data->length) {
             data->buffer = cx_realloc(data->buffer, strlen(data->buffer) + strlen(str) + 1);
             data->ptr = data->buffer;
         }
-
         length = strlen(str);
         bufferLength = strlen(data->buffer);
-
         if (data->maxlength && ((bufferLength + length) >= data->maxlength)) {
             strncat(data->ptr, str, data->maxlength - bufferLength);
             goto maxreached;
@@ -38,7 +35,6 @@ static cx_bool cx_ser_appendstrbuff(struct sqlite_ser* data, char* str) {
             strcat(data->ptr, str);
         }
     }
-
     return TRUE;
 maxreached:
     return FALSE;
@@ -76,7 +72,6 @@ static cx_int16 cx_ser_object(cx_serializer s, cx_value* v, void* userData) {
     CX_UNUSED(s);
     cx_object *o = cx_valueObject(v);
     struct sqlite_ser *data = userData;
-    // cx_string name = cx_nameof(o);
     int parentId = 0; /* todo obtain parent id */
     cx_string parentIdStr;
     {

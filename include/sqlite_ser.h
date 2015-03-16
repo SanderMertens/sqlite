@@ -11,6 +11,7 @@ typedef struct sqlite_ser {
     unsigned int length;
     unsigned int maxlength;
     unsigned int itemCount;
+    unsigned int depth; /* how many many bases this has */
 } sqlite_ser_t;
 
 struct cx_serializer_s sqlite_ser_declare(cx_modifier access, cx_operatorKind accessKind, cx_serializerTraceKind trace);
