@@ -72,7 +72,7 @@ static cx_bool cx_ser_appendstr(struct sqlite_ser* data, cx_string fmt, ...) {
     return result;
 }
 
-static cx_int16 cx_ser_primitive(cx_serializer s, cx_value *info, void *userData) {
+static cx_int16 serializePrimitive(cx_serializer s, cx_value *info, void *userData) {
     CX_UNUSED(s);
     cx_type type;
     cx_void *value;
@@ -154,21 +154,21 @@ error:
     return -1;
 }
 
-static cx_int16 cx_ser_reference(cx_serializer s, cx_value *v, void *userData) {
+static cx_int16 serializeReference(cx_serializer s, cx_value *v, void *userData) {
     CX_UNUSED(s);
     CX_UNUSED(v);
     CX_UNUSED(userData);
     return 0;
 }
 
-static cx_int16 cx_ser_item(cx_serializer s, cx_value *v, void *userData) {
+static cx_int16 serializeItem(cx_serializer s, cx_value *v, void *userData) {
     CX_UNUSED(s);
     CX_UNUSED(v);
     CX_UNUSED(userData);
     return 0;
 }
 
-static cx_int16 cx_ser_composite(cx_serializer s, cx_value* v, void* userData) {
+static cx_int16 serializeComposite(cx_serializer s, cx_value* v, void* userData) {
     struct sqlite_ser data = *(struct sqlite_ser*)userData;
     data.itemCount = 0;
     cx_type type = cx_valueType(v);
@@ -192,7 +192,7 @@ error:
     return -1;
 }
 
-static cx_int16 cx_ser_base(cx_serializer s, cx_value* v, void* userData) {
+static cx_int16 serializeBase(cx_serializer s, cx_value* v, void* userData) {
     CX_UNUSED(s);
     CX_UNUSED(v);
     CX_UNUSED(userData);
@@ -203,7 +203,7 @@ static cx_int16 cx_ser_base(cx_serializer s, cx_value* v, void* userData) {
  * It should be responsibility of the underlying value kind to add
  * "(column1, column2) VALUES (value1, value2)".
  */
-static cx_int16 cx_ser_object(cx_serializer s, cx_value* v, void* userData) {
+static cx_int16 serializeObject(cx_serializer s, cx_value* v, void* userData) {
     struct sqlite_ser *data = userData;
     if (!cx_ser_appendstr(data, "UPDATE \"%s\"",
             cx_nameof(cx_valueType(v)))) {
@@ -225,13 +225,12 @@ struct cx_serializer_s sqlite_ser_update(cx_modifier access, cx_operatorKind acc
     s.access = access;
     s.accessKind = accessKind;
     s.traceKind = trace;
-    s.program[CX_PRIMITIVE] = cx_ser_primitive;
-    s.reference = cx_ser_reference;
-    s.program[CX_COMPOSITE] = cx_ser_composite;
-    // s.program[CX_COLLECTION] = cx_ser_complex;
-    s.metaprogram[CX_ELEMENT] = cx_ser_item;
-    s.metaprogram[CX_MEMBER] = cx_ser_item;
-    s.metaprogram[CX_BASE] = cx_ser_base;
-    s.metaprogram[CX_OBJECT] = cx_ser_object;
+    s.reference = serializeReference;
+    s.program[CX_PRIMITIVE] = serializePrimitive;
+    s.program[CX_COMPOSITE] = serializeComposite;
+    s.metaprogram[CX_ELEMENT] = serializeItem;
+    s.metaprogram[CX_MEMBER] = serializeItem;
+    s.metaprogram[CX_BASE] = serializeBase;
+    s.metaprogram[CX_OBJECT] = serializeObject;
     return s;
 }

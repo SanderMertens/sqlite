@@ -72,7 +72,7 @@ static cx_bool cx_ser_appendstr(struct sqlite_ser* data, cx_string fmt, ...) {
     return result;
 }
 
-static cx_int16 cx_ser_primitive(cx_serializer s, cx_value *v, void *userData) {
+static cx_int16 serializePrimitive(cx_serializer s, cx_value *v, void *userData) {
     CX_UNUSED(s);
     cx_type type;
     cx_void *value;
@@ -179,7 +179,7 @@ error:
     return -1;
 }
 
-static cx_int16 cx_ser_reference(cx_serializer s, cx_value *v, void *userData) {
+static cx_int16 serializeReference(cx_serializer s, cx_value *v, void *userData) {
     CX_UNUSED(s);
     CX_UNUSED(v);
     struct sqlite_ser *data = userData;
@@ -191,7 +191,7 @@ finished:
     return 1;
 }
 
-static cx_int16 cx_ser_item(cx_serializer s, cx_value *v, void *userData) {
+static cx_int16 serializeMember(cx_serializer s, cx_value *v, void *userData) {
     struct sqlite_ser *data = userData;
     printf("%s - %d\n", cx_nameof(v->is.member.t), data->itemCount);
     if (data->itemCount) {
@@ -206,7 +206,7 @@ finished:
     return 1;
 }
 
-static cx_int16 cx_ser_composite(cx_serializer s, cx_value* v, void* userData) {
+static cx_int16 serializeComposite(cx_serializer s, cx_value* v, void* userData) {
     struct sqlite_ser *_data = userData;
     struct sqlite_ser data = *_data;
     // data.itemCount = 0;
@@ -221,7 +221,7 @@ error:
     return -1;
 }
 
-static cx_int16 cx_ser_collection(cx_serializer s, cx_value* v, void* userData) {
+static cx_int16 serializeCollection(cx_serializer s, cx_value* v, void* userData) {
     CX_UNUSED(s);
     CX_UNUSED(v);
     struct sqlite_ser *_data = userData;
@@ -235,18 +235,9 @@ static cx_int16 cx_ser_collection(cx_serializer s, cx_value* v, void* userData) 
     return 0;
 finished:
     return 1;
-// error:
-    // return -1;
 }
 
-// static cx_int16 cx_ser_base(cx_serializer s, cx_value* v, void* userData) {
-//     CX_UNUSED(s);
-//     CX_UNUSED(v);
-//     CX_UNUSED(userData);
-//     return 0;
-// }
-
-static cx_int16 cx_ser_object(cx_serializer s, cx_value* v, void* userData) {
+static cx_int16 serializeObject(cx_serializer s, cx_value* v, void* userData) {
     struct sqlite_ser *data = userData;
     cx_object *o = cx_valueObject(v);
     cx_id columnName;
@@ -273,13 +264,11 @@ struct cx_serializer_s sqlite_ser_define(cx_modifier access, cx_operatorKind acc
     s.access = access;
     s.accessKind = accessKind;
     s.traceKind = trace;
-    s.program[CX_PRIMITIVE] = cx_ser_primitive;
-    s.reference = cx_ser_reference;
-    s.program[CX_COMPOSITE] = cx_ser_composite;
-    s.program[CX_COLLECTION] = cx_ser_collection;
-    // s.metaprogram[CX_ELEMENT] = cx_ser_item;
-    s.metaprogram[CX_MEMBER] = cx_ser_item;
-    // s.metaprogram[CX_BASE] = cx_ser_base;
-    s.metaprogram[CX_OBJECT] = cx_ser_object;
+    s.reference = serializeReference;
+    s.program[CX_PRIMITIVE] = serializePrimitive;
+    s.program[CX_COMPOSITE] = serializeComposite;
+    s.program[CX_COLLECTION] = serializeCollection;
+    s.metaprogram[CX_MEMBER] = serializeMember;
+    s.metaprogram[CX_OBJECT] = serializeObject;
     return s;
 }

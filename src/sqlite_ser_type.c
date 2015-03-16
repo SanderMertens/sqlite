@@ -72,7 +72,7 @@ static cx_bool cx_ser_appendstr(struct sqlite_ser* data, cx_string fmt, ...) {
     return result;
 }
 
-static cx_int16 serialize_primitive(cx_serializer s, cx_value *v, void *userData) {
+static cx_int16 serializePrimitive(cx_serializer s, cx_value *v, void *userData) {
     CX_UNUSED(s);
     struct sqlite_ser *data = userData;
     switch (cx_primitive(cx_valueType(v))->kind) {
@@ -117,7 +117,6 @@ static cx_int16 serialize_primitive(cx_serializer s, cx_value *v, void *userData
             }
             break;
         case CX_ENUM:
-            /* if (!cx_ser_appendstr(data, "\"%s\" INTEGER REFERENCES \"%sConstant\"", */
             if (!cx_ser_appendstr(data, "ENUM_INT")) {
                 goto finished;
             }
@@ -141,7 +140,7 @@ static cx_int16 serialize_reference(cx_serializer s, cx_value *v, void *userData
     return 0;
 }
 
-static cx_int16 serialize_base(cx_serializer s, cx_value *v, void *userData) {
+static cx_int16 serializeBase(cx_serializer s, cx_value *v, void *userData) {
     struct sqlite_ser *_data = userData;
     struct sqlite_ser data = *_data;
     data.depth++;
@@ -162,9 +161,8 @@ error:
     return -1;
 }
 
-static cx_int16 serialize_member(cx_serializer s, cx_value *v, void *userData) {
+static cx_int16 serializeMember(cx_serializer s, cx_value *v, void *userData) {
     CX_UNUSED(s);
-    // cx_type type = cx_valueType(v);
     struct sqlite_ser *data = userData;
     unsigned int depth;
     if (data->itemCount) {
@@ -192,25 +190,10 @@ finished:
     return 1;
 }
 
-// static cx_int16 serialize_composite(cx_serializer s, cx_value* v, void* userData) {
-//     // CX_UNUSED(s);
-//     // CX_UNUSED(v);
-//     // CX_UNUSED(userData);
-//     // if (!cx_ser_appendstr(data, "COMPOSITE")) {
-//     //     goto finished;
-//     // }
-//     cx_serializeValue(s, v, userData);
-//     return 0;
-// }
-
-
-static cx_int16 serialize_object(cx_serializer s, cx_value* v, void* userData) {
+static cx_int16 serializeObject(cx_serializer s, cx_value* v, void* userData) {
     struct sqlite_ser *data = userData;
-    // cx_type type = cx_valueType(v);
-    // TODO put fully scoped name with underscores
     cx_id fullname;
     cx_fullname(cx_valueType(v), fullname);
-    // printf("*** %s ***\n", fullname);
     if (!cx_ser_appendstr(data, "CREATE TABLE IF NOT EXISTS \"%s\""
             " (\"ObjectId\" INTEGER",
             fullname)) {
@@ -234,11 +217,6 @@ static cx_int16 serialize_object(cx_serializer s, cx_value* v, void* userData) {
             cx_warning("ok this is not nice");
             break;
     }
-    // if (cx_valueType(v)->kind == CX_PRIMITIVE) {
-    //     if (!cx_ser_appendstr(data, "\"Value\" ")) {
-    //         goto finished;
-    //     }
-    // }
     if (shouldSerialize) {
         cx_serializeValue(s, v, userData);
     }
@@ -258,13 +236,10 @@ struct cx_serializer_s sqlite_ser_type(cx_modifier access, cx_operatorKind acces
     s.accessKind = accessKind;
     s.traceKind = trace;
     s.reference = serialize_reference;
-    s.program[CX_PRIMITIVE] = serialize_primitive;
+    s.program[CX_PRIMITIVE] = serializePrimitive;
     s.program[CX_COLLECTION] = NULL;
-    // s.program[CX_COMPOSITE] = serialize_composite;
-    // s.metaprogram[CX_ELEMENT] = serialize_member;
- 
-    s.metaprogram[CX_MEMBER] = serialize_member;
-    s.metaprogram[CX_BASE] = serialize_base;
-    s.metaprogram[CX_OBJECT] = serialize_object;
+    s.metaprogram[CX_MEMBER] = serializeMember;
+    s.metaprogram[CX_BASE] = serializeBase;
+    s.metaprogram[CX_OBJECT] = serializeObject;
     return s;
 }

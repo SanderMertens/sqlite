@@ -68,7 +68,7 @@ static cx_bool cx_ser_appendstr(struct sqlite_ser* data, cx_string fmt, ...) {
     return result;
 }
 
-static cx_int16 cx_ser_object(cx_serializer s, cx_value* v, void* userData) {
+static cx_int16 serializeObject(cx_serializer s, cx_value* v, void* userData) {
     CX_UNUSED(s);
     cx_object *o = cx_valueObject(v);
     struct sqlite_ser *data = userData;
@@ -106,9 +106,10 @@ finished:
 struct cx_serializer_s sqlite_ser_declare(cx_modifier access, cx_operatorKind accessKind, cx_serializerTraceKind trace) {
     struct cx_serializer_s s;
     cx_serializerInit(&s);
+
     s.access = access;
     s.accessKind = accessKind;
     s.traceKind = trace;
-    s.metaprogram[CX_OBJECT] = cx_ser_object;
+    s.metaprogram[CX_OBJECT] = serializeObject;
     return s;
 }
