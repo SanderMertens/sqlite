@@ -5,6 +5,7 @@ class connector: implements={dispatcher}::
     void onDefine() observer
     void onUpdate() observer
     filename: string
+    db: word, private|local
     thread: word, private|local // Thread in which the server will run
     events: list{event}, private|local
     int16 construct()

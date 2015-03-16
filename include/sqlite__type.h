@@ -24,6 +24,7 @@ CX_CLASS(sqlite_connector);
 
 CX_CLASS_DEF(sqlite_connector) {
     cx_string filename;
+    cx_word db;
     cx_word thread;
     cx_event_list events;
 };
