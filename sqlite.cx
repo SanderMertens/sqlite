@@ -1,6 +1,6 @@
 #package ::cortex::sqlite
 
-class server : implements={dispatcher}::
+class connector: implements={dispatcher}::
     void onDeclare() observer
     void onDefine() observer
     void onUpdate() observer

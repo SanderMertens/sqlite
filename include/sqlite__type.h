@@ -14,15 +14,15 @@ extern "C" {
 #endif
 
 /* Casting macro's for classes */
-#define sqlite_server(o) ((sqlite_server)o)
+#define sqlite_connector(o) ((sqlite_connector)o)
 
 /* Type definitions */
 CX_LIST(cx_event_list);
 
-/*  ::cortex::sqlite::server */
-CX_CLASS(sqlite_server);
+/*  ::cortex::sqlite::connector */
+CX_CLASS(sqlite_connector);
 
-CX_CLASS_DEF(sqlite_server) {
+CX_CLASS_DEF(sqlite_connector) {
     cx_string filename;
     cx_word thread;
     cx_event_list events;
