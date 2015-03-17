@@ -92,3 +92,18 @@ cx_int16 sqlite_ser_serializePrimitiveValue(cx_value *v, cx_string *buffer) {
 error:
     return -1;
 }
+
+cx_int16 sqlite_ser_serializeReferenceValue(cx_value *v, cx_string *buffer) {
+    cx_assert(*buffer == NULL, "buffer is not NULL");
+    cx_object o = *(cx_object *)cx_valueValue(v);
+    if (o && cx_checkAttr(o, CX_ATTR_SCOPED)) {
+        cx_id referenceFullName;
+        cx_fullname(o, referenceFullName);
+        *buffer = cx_malloc(1 + strlen(referenceFullName) + 1 + 1);
+        sprintf(*buffer, "'%s'", referenceFullName);
+    } else {
+        *buffer = cx_malloc(sizeof("NULL"));
+        strcpy(*buffer, "NULL");
+    }
+    return 0;
+}

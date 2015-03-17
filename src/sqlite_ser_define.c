@@ -92,14 +92,20 @@ error:
 
 static cx_int16 serializeReference(cx_serializer s, cx_value *v, void *userData) {
     CX_UNUSED(s);
-    CX_UNUSED(v);
     struct sqlite_ser *data = userData;
-    if (!cx_ser_appendstr(data, "NULL")) {
+    cx_string valueString = NULL;
+    if (sqlite_ser_serializeReferenceValue(v, &valueString)) {
+        goto error;
+    }
+    if (!cx_ser_appendstr(data, "%s", valueString)) {
         goto finished;
     }
+    cx_dealloc(valueString);
     return 0;
 finished:
     return 1;
+error:
+    return -1;
 }
 
 static cx_int16 serializeMember(cx_serializer s, cx_value *v, void *userData) {

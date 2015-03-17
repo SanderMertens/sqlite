@@ -25,3 +25,4 @@ size_t sqlite_ser_escsqlstr(char *out, size_t n, const char *in);
  * Should receive a NULL buffer that needs subsequent de-allocation.
  */
 cx_int16 sqlite_ser_serializePrimitiveValue(cx_value *v, cx_string *buffer);
+cx_int16 sqlite_ser_serializeReferenceValue(cx_value *v, cx_string *buffer);
