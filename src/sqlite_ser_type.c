@@ -137,7 +137,13 @@ static cx_int16 serialize_reference(cx_serializer s, cx_value *v, void *userData
     CX_UNUSED(s);
     CX_UNUSED(v);
     CX_UNUSED(userData);
+    struct sqlite_ser *data = userData;
+    if (!cx_ser_appendstr(data, "REFERENCE")) {
+        goto finished;
+    }
     return 0;
+finished:
+    return 1;
 }
 
 static cx_int16 serializeBase(cx_serializer s, cx_value *v, void *userData) {
@@ -165,7 +171,7 @@ static cx_int16 serializeMember(cx_serializer s, cx_value *v, void *userData) {
     CX_UNUSED(s);
     struct sqlite_ser *data = userData;
     unsigned int depth;
-    cx_string memberName
+    cx_string memberName;
     if (data->itemCount) {
         if (!cx_ser_appendstr(data, ", ")) {
             goto finished;
@@ -186,6 +192,18 @@ static cx_int16 serializeMember(cx_serializer s, cx_value *v, void *userData) {
     }
     cx_serializeValue(s, v, data);
     data->itemCount++;
+    return 0;
+finished:
+    return 1;
+}
+
+static cx_int16 serializeCollection(cx_serializer s, cx_value *v, void *userData) {
+    CX_UNUSED(s);
+    CX_UNUSED(v);
+    struct sqlite_ser *data = userData;
+    if (!cx_ser_appendstr(data, "COLLECTION")) {
+        goto finished;
+    }
     return 0;
 finished:
     return 1;
@@ -238,7 +256,7 @@ struct cx_serializer_s sqlite_ser_type(cx_modifier access, cx_operatorKind acces
     s.traceKind = trace;
     s.reference = serialize_reference;
     s.program[CX_PRIMITIVE] = serializePrimitive;
-    s.program[CX_COLLECTION] = NULL;
+    s.program[CX_COLLECTION] = serializeCollection;
     s.metaprogram[CX_MEMBER] = serializeMember;
     s.metaprogram[CX_BASE] = serializeBase;
     s.metaprogram[CX_OBJECT] = serializeObject;

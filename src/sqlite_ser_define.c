@@ -74,104 +74,15 @@ static cx_bool cx_ser_appendstr(struct sqlite_ser* data, cx_string fmt, ...) {
 
 static cx_int16 serializePrimitive(cx_serializer s, cx_value *v, void *userData) {
     CX_UNUSED(s);
-    cx_type type;
-    cx_void *value;
     struct sqlite_ser *data = userData;
-    cx_int16 result;
-
-    type = cx_valueType(v);
-    value = cx_valueValue(v);
-
-    switch (cx_primitive(type)->kind) {
-        case CX_BINARY:
-            if (!cx_ser_appendstr(data, "%s", "0")) {
-                goto finished;
-            }
-            break;
-        case CX_BITMASK:
-            {
-                cx_string valueString = NULL;
-                result = cx_convert(cx_primitive(cx_uint32_o), value, cx_primitive(cx_string_o), &valueString);
-                if (result) {
-                    goto error;
-                }
-                if (!cx_ser_appendstr(data, "%s", valueString)) {
-                    goto finished;
-                }
-                cx_dealloc(valueString);
-            }
-            break;
-        case CX_ENUM:
-            {
-                cx_string valueString = NULL;
-                result = cx_convert(cx_primitive(cx_int32_o), value, cx_primitive(cx_string_o), &valueString);
-                if (result) {
-                    goto error;
-                }
-                if (!cx_ser_appendstr(data, "%s", valueString)) {
-                    goto finished;
-                }
-                cx_dealloc(valueString);
-            }
-            break;
-        case CX_CHARACTER:
-        case CX_TEXT:
-            {
-                cx_string valueString = NULL;
-                result = cx_convert(cx_primitive(type), value, cx_primitive(cx_string_o), &valueString);
-                if (result) {
-                    goto error;
-                }
-                if (!*(cx_string *)value) {
-                    if (!cx_ser_appendstr(data, "NULL")) {
-                        goto finished;
-                    }
-                } else {
-                    if (!cx_ser_appendstr(data, "'")) {
-                        goto finished;
-                    }
-                    size_t length = escsqlstr(NULL, 0, valueString);
-                    char *escapedString = cx_malloc(length + 1);
-                    escsqlstr(escapedString, length, valueString);
-                    if (!cx_ser_appendstr(data, escapedString)) {
-                        goto finished;
-                    }
-                    cx_dealloc(escapedString);
-                    if (!cx_ser_appendstr(data, "'")) {
-                        goto finished;
-                    }
-                }
-                cx_dealloc(valueString);
-            }
-            break;
-        case CX_BOOLEAN:
-            {
-                cx_bool *b = cx_valueValue(v);
-                if (!cx_ser_appendstr(data, "%s", (*b) ? "88" : "77")) {
-                    goto finished;
-                }
-                
-            }
-            break;
-        case CX_INTEGER:
-        case CX_FLOAT:
-        case CX_UINTEGER:
-            {
-                cx_string valueString = NULL;
-                result = cx_convert(cx_primitive(type), value, cx_primitive(cx_string_o), &valueString);
-                if (result) {
-                    goto error;
-                }
-                if (!cx_ser_appendstr(data, valueString)) {
-                    goto finished;
-                }
-                cx_dealloc(valueString);
-            }
-            break;
-        case CX_ALIAS:
-            cx_critical("Cannot serialize alias");
-            break;
+    cx_string valueString = NULL;
+    if (sqlite_ser_serializePrimitiveValue(v, &valueString)) {
+        goto error;
     }
+    if (!cx_ser_appendstr(data, "%s", valueString)) {
+        goto finished;
+    }
+    cx_dealloc(valueString);
     return 0;
 finished:
     return 1;
@@ -199,17 +110,20 @@ static cx_int16 serializeMember(cx_serializer s, cx_value *v, void *userData) {
             goto finished;
         }
     }
-    cx_serializeValue(s, v, data);
+    if (cx_serializeValue(s, v, data)) {
+        goto error;
+    }
     data->itemCount++;
     return 0;
 finished:
     return 1;
+error:
+    return -1;
 }
 
 static cx_int16 serializeComposite(cx_serializer s, cx_value* v, void* userData) {
     struct sqlite_ser *_data = userData;
     struct sqlite_ser data = *_data;
-    // data.itemCount = 0;
     if (cx_serializeMembers(s, v, &data)) {
         goto error;
     }
@@ -245,7 +159,9 @@ static cx_int16 serializeObject(cx_serializer s, cx_value* v, void* userData) {
     if (!cx_ser_appendstr(data, "INSERT INTO \"%s\" VALUES (NULL, ", columnName)) {
         goto finished;
     }
-    cx_serializeValue(s, v, data);
+    if (cx_serializeValue(s, v, data)) {
+        goto error;        
+    }
     if (!cx_ser_appendstr(data, ");")) {
         goto finished;
     }
@@ -255,6 +171,8 @@ static cx_int16 serializeObject(cx_serializer s, cx_value* v, void* userData) {
     return 0;
 finished:
     return 1;
+error:
+    return -1;
 }
 
 struct cx_serializer_s sqlite_ser_define(cx_modifier access, cx_operatorKind accessKind, cx_serializerTraceKind trace) {

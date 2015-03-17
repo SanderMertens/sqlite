@@ -89,8 +89,8 @@ static cx_int16 serializeObject(cx_serializer s, cx_value* v, void* userData) {
         }
     }
     if (!cx_ser_appendstr(data,
-            "INSERT INTO \"Objects\" (\"Name\", \"Parent\") "
-            "VALUES ('%s', %s);",
+            "INSERT INTO \"Objects\" (\"ObjectId\", \"Name\", \"Parent\") "
+            "VALUES (NULL, '%s', %s);",
             cx_nameof(o),
             parentIdStr
         )) {

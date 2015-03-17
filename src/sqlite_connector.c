@@ -60,10 +60,10 @@ cx_int16 sqlite_connector_construct(sqlite_connector _this) {
         cx_touch(_this->filename);
     }
     if (sqlite3_open(_this->filename, (sqlite3 **)&(_this->db)) != SQLITE_OK) {
-        cx_critical("%s", sqlite3_errmsg((sqlite3 *)_this->db));
+        cx_error("%s", sqlite3_errmsg((sqlite3 *)_this->db));
     }
     if (sqlite3_exec((sqlite3 *)_this->db, "PRAGMA foreign_keys = ON;", NULL, NULL, &errMsg) != SQLITE_OK) {
-        cx_critical(errMsg);
+        cx_error(errMsg);
         sqlite3_free(errMsg);
     }
     bootstrapDatabase(_this);
@@ -95,23 +95,23 @@ cx_void sqlite_connector_onDeclare(sqlite_connector _this, cx_object *observable
     char *errMsg = NULL;
     if (!isBlacklisted(source)) {
         struct cx_serializer_s serializer = sqlite_ser_declare(CX_PRIVATE, CX_NOT, CX_SERIALIZER_TRACE_NEVER);
-        struct sqlite_ser sqlData = {NULL, NULL, 0, 0, 0, 0};
-        cx_serialize(&serializer, source, &sqlData);
-        cx_debug(sqlData.buffer);
-        if (sqlite3_exec((sqlite3 *)_this->db, sqlData.buffer, NULL, NULL, &errMsg) != SQLITE_OK) {
-            cx_critical((char *)sqlite3_errmsg((sqlite3 *)_this->db));
-            cx_critical(errMsg);
+        struct sqlite_ser data = {NULL, NULL, 0, 0, 0, 0};
+        cx_serialize(&serializer, source, &data);
+        cx_debug(data.buffer);
+        if (sqlite3_exec((sqlite3 *)_this->db, data.buffer, NULL, NULL, &errMsg) != SQLITE_OK) {
+            cx_error((char *)sqlite3_errmsg((sqlite3 *)_this->db));
+            cx_error(errMsg);
             sqlite3_free(errMsg);
         }
     } else if (cx_instanceof(cx_type(cx_type_o), source)) {
         if (cx_type(source)->kind != CX_COMPOSITE || cx_interface(source)->kind != CX_INTERFACE) {
             struct cx_serializer_s serializer = sqlite_ser_type(CX_PRIVATE, CX_NOT, CX_SERIALIZER_TRACE_NEVER);
-            struct sqlite_ser sqlData = {NULL, NULL, 0, 0, 0, 0};
-            cx_metaWalk(&serializer, cx_type(source), &sqlData);
-            cx_debug(sqlData.buffer);
-            if (sqlite3_exec((sqlite3 *)_this->db, sqlData.buffer, NULL, NULL, &errMsg) != SQLITE_OK) {
-                cx_critical((char *)sqlite3_errmsg((sqlite3 *)_this->db));
-                cx_critical(errMsg);
+            struct sqlite_ser data = {NULL, NULL, 0, 0, 0, 0};
+            cx_metaWalk(&serializer, cx_type(source), &data);
+            cx_debug(data.buffer);
+            if (sqlite3_exec((sqlite3 *)_this->db, data.buffer, NULL, NULL, &errMsg) != SQLITE_OK) {
+                cx_error((char *)sqlite3_errmsg((sqlite3 *)_this->db));
+                cx_error(errMsg);
                 sqlite3_free(errMsg);
             }
             
@@ -129,20 +129,22 @@ cx_void sqlite_connector_onDefine(sqlite_connector _this, cx_object *observable,
     if (!isBlacklisted(observable)) {
         if (cx_instanceof(cx_type(cx_type_o), observable)) {
             struct cx_serializer_s serializer = sqlite_ser_type(CX_PRIVATE, CX_NOT, CX_SERIALIZER_TRACE_NEVER);
-            struct sqlite_ser sqlData = {NULL, NULL, 0, 0, 0, 0};
-            cx_metaWalk(&serializer, cx_type(observable), &sqlData);
-            if (sqlite3_exec((sqlite3 *)_this->db, sqlData.buffer, NULL, NULL, &errmsg) != SQLITE_OK) {
-                cx_critical((char *)sqlite3_errmsg((sqlite3 *)_this->db));
-                cx_critical(errmsg);
+            struct sqlite_ser data = {NULL, NULL, 0, 0, 0, 0};
+            cx_metaWalk(&serializer, cx_type(observable), &data);
+            cx_debug("%s\n", data.buffer);
+            if (sqlite3_exec((sqlite3 *)_this->db, data.buffer, NULL, NULL, &errmsg) != SQLITE_OK) {
+                cx_error((char *)sqlite3_errmsg((sqlite3 *)_this->db));
+                cx_error(errmsg);
                 sqlite3_free(errmsg);
             }
         } else if (cx_typeof(observable)->kind != CX_VOID) {
             struct cx_serializer_s serializer = sqlite_ser_define(CX_PRIVATE, CX_NOT, CX_SERIALIZER_TRACE_NEVER);
-            struct sqlite_ser sqlData = {NULL, NULL, 0, 0, 0, 0};
-            cx_serialize(&serializer, observable, &sqlData);
-            if (sqlite3_exec((sqlite3 *)_this->db, sqlData.buffer, NULL, NULL, &errmsg) != SQLITE_OK) {
-                cx_critical((char *)sqlite3_errmsg((sqlite3 *)_this->db));
-                cx_critical(errmsg);
+            struct sqlite_ser data = {NULL, NULL, 0, 0, 0, 0};
+            cx_serialize(&serializer, observable, &data);
+            cx_debug("%s\n", data.buffer);
+            if (sqlite3_exec((sqlite3 *)_this->db, data.buffer, NULL, NULL, &errmsg) != SQLITE_OK) {
+                cx_error((char *)sqlite3_errmsg((sqlite3 *)_this->db));
+                cx_error(errmsg);
                 sqlite3_free(errmsg);
             }
         }
