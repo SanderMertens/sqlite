@@ -156,9 +156,11 @@ cx_void sqlite_connector_onDefine(sqlite_connector _this, cx_object *observable,
 cx_void sqlite_connector_onUpdate(sqlite_connector _this, cx_object *observable, cx_object *source) {
 /* $begin(::cortex::sqlite::connector::onUpdate) */
     CX_UNUSED(_this);
-    CX_UNUSED(observable);
     CX_UNUSED(source);
-    printf("This is an update of %s!\n", cx_nameof(observable));
+    struct cx_serializer_s serializer = sqlite_ser_update(CX_PRIVATE, CX_NOT, CX_SERIALIZER_TRACE_NEVER);
+    struct sqlite_ser data = {NULL, NULL, 0, 0, 0, 0};
+    cx_serialize(&serializer, observable, &data);
+    cx_debug(data.buffer);
 /* $end */
 }
 

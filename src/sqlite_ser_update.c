@@ -146,12 +146,26 @@ finished:
 //     return -1;
 // }
 
-// static cx_int16 serializeBase(cx_serializer s, cx_value* v, void* userData) {
-//     CX_UNUSED(s);
-//     CX_UNUSED(v);
-//     CX_UNUSED(userData);
-//     return 0;
-// }
+static cx_int16 serializeBase(cx_serializer s, cx_value *v, void *userData) {
+    struct sqlite_ser *_data = userData;
+    struct sqlite_ser data = *_data;
+    data.depth++;
+    cx_int16 errors;
+    errors = cx_serializeValue(s, v, &data);
+    if (errors == 1) {
+        goto finished;
+    } else if (errors == -1) {
+        goto error;
+    }
+    _data->itemCount = data.itemCount;
+    _data->buffer = data.buffer;
+    _data->ptr = data.ptr;
+    return 0;
+finished:
+    return 1;
+error:
+    return -1;
+}
 
 /*
  * It should be responsibility of the underlying value kind to add
@@ -160,20 +174,26 @@ finished:
 static cx_int16 serializeObject(cx_serializer s, cx_value* v, void* userData) {
     struct sqlite_ser *data = userData;
     cx_id fullname;
-    cx_fullname(cx_valueObject(v), fullname);
-    if (!cx_ser_appendstr(data, "UPDATE \"%s\" SET", fullname)) {
+    cx_fullname(cx_valueType(v), fullname);
+    if (!cx_ser_appendstr(data, "UPDATE \"%s\" SET ", fullname)) {
         goto finished;
     }
     if (cx_valueType(v)->kind == CX_PRIMITIVE) {
-
+        if (!cx_ser_appendstr(data, "\"Value\"=")) {
+            goto finished;
+        }
     }
-    cx_serializeValue(s, v, data);
-    if (!cx_ser_appendstr(data, ";")) {
+    if (cx_serializeValue(s, v, data)) {
+        goto error;
+    }
+    if (!cx_ser_appendstr(data, " WHERE \"ObjectId\"=NULL;")) {
         goto finished;
     }
     return 0;
 finished:
     return 1;
+error:
+    return -1;
 }
 
 struct cx_serializer_s sqlite_ser_update(cx_modifier access, cx_operatorKind accessKind, cx_serializerTraceKind trace) {
@@ -188,7 +208,7 @@ struct cx_serializer_s sqlite_ser_update(cx_modifier access, cx_operatorKind acc
     // s.program[CX_COMPOSITE] = serializeComposite;
     // s.metaprogram[CX_ELEMENT] = serializeMember;
     s.metaprogram[CX_MEMBER] = serializeMember;
-    // s.metaprogram[CX_BASE] = serializeBase;
+    s.metaprogram[CX_BASE] = serializeBase;
     s.metaprogram[CX_OBJECT] = serializeObject;
     return s;
 }
