@@ -72,33 +72,27 @@ static cx_int16 serializeObject(cx_serializer s, cx_value* v, void* userData) {
     CX_UNUSED(s);
     cx_object *o = cx_valueObject(v);
     struct sqlite_ser *data = userData;
-    int parentId = 0; /* todo obtain parent id */
-    cx_string parentIdStr;
-    {
-        if (parentId != 0) {
-            size_t length;
-            length = snprintf(NULL, 0, "%d", parentId);
-            if (length < 1) {
-                goto error;
-            }
-            parentIdStr = cx_malloc(length + 1);
-            sprintf(parentIdStr, "%d", parentId);
-        } else {
-            parentIdStr = cx_malloc(sizeof("NULL"));
-            strcpy(parentIdStr, "NULL");
-        }
+    cx_id fullname;
+    cx_id parentFullname;
+    if (cx_checkAttr(o, CX_ATTR_SCOPED)) {
+        cx_fullname(cx_valueObject(v), fullname);
+        cx_fullname(cx_parentof(cx_valueObject(v)), parentFullname);
+    } else {
+        strcpy(fullname, "NULL");
+        strcpy(parentFullname, "NULL");
     }
     if (!cx_ser_appendstr(data,
             "INSERT INTO \"Objects\" (\"ObjectId\", \"Name\", \"Parent\") "
-            "VALUES (NULL, '%s', %s);",
+            "VALUES ('%s', '%s', '%s');",
+            fullname,
             cx_nameof(o),
-            parentIdStr
+            parentFullname
         )) {
         goto finished;
     }
     return 0;
-error:
-    return -1;
+// error:
+//     return -1;
 finished:
     return 1;
 }

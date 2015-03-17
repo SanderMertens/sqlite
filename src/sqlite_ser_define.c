@@ -152,10 +152,11 @@ finished:
 
 static cx_int16 serializeObject(cx_serializer s, cx_value* v, void* userData) {
     struct sqlite_ser *data = userData;
-    cx_object *o = cx_valueObject(v);
-    cx_id columnName;
-    cx_fullname(cx_typeof(o), columnName);
-    if (!cx_ser_appendstr(data, "INSERT INTO \"%s\" VALUES (NULL, ", columnName)) {
+    cx_id typeFullname;
+    cx_id fullname;
+    cx_fullname(cx_valueType(v), typeFullname);
+    cx_fullname(cx_valueObject(v), fullname);
+    if (!cx_ser_appendstr(data, "INSERT INTO \"%s\" VALUES ('%s', ", typeFullname, fullname)) {
         goto finished;
     }
     if (cx_serializeValue(s, v, data)) {
@@ -163,9 +164,6 @@ static cx_int16 serializeObject(cx_serializer s, cx_value* v, void* userData) {
     }
     if (!cx_ser_appendstr(data, ");")) {
         goto finished;
-    }
-    if (cx_instanceof(cx_typeof(cx_type_o), o)) {
-        
     }
     return 0;
 finished:

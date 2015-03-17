@@ -32,13 +32,14 @@ static cx_bool isBlacklisted(cx_object o) {
 }
 
 static cx_void bootstrapDatabase(sqlite_connector _this) {
-    // TODO GET THIS FROM bootstrap.sql
     const char bootstrap[] =
         "CREATE TABLE IF NOT EXISTS \"Objects\" ("
-        "\"ObjectId\" INTEGER PRIMARY KEY,"
+        "\"ObjectId\" TEXT PRIMARY KEY,"
         "\"Name\" TEXT,"
-        "\"Parent\" NUMERIC REFERENCES \"Objects\"(\"ObjectId\")"
+        "\"Parent\" TEXT REFERENCES \"Objects\"(\"ObjectId\")"
         ");"
+        "INSERT INTO \"Objects\" (\"ObjectId\", \"Name\", \"Parent\") VALUES "
+        "(\"::\", NULL, NULL)"
         ;
     char *errMsg = NULL;
     if (sqlite3_exec((sqlite3 *)_this->db, "PRAGMA foreign_keys = ON;", NULL, NULL, &errMsg) != SQLITE_OK) {
@@ -157,10 +158,16 @@ cx_void sqlite_connector_onUpdate(sqlite_connector _this, cx_object *observable,
 /* $begin(::cortex::sqlite::connector::onUpdate) */
     CX_UNUSED(_this);
     CX_UNUSED(source);
+    char *errmsg;
     struct cx_serializer_s serializer = sqlite_ser_update(CX_PRIVATE, CX_NOT, CX_SERIALIZER_TRACE_NEVER);
     struct sqlite_ser data = {NULL, NULL, 0, 0, 0, 0};
     cx_serialize(&serializer, observable, &data);
-    cx_debug(data.buffer);
+    cx_debug("%s\n", data.buffer);
+    if (sqlite3_exec((sqlite3 *)_this->db, data.buffer, NULL, NULL, &errmsg) != SQLITE_OK) {
+        cx_error((char *)sqlite3_errmsg((sqlite3 *)_this->db));
+        cx_error(errmsg);
+        sqlite3_free(errmsg);
+    }
 /* $end */
 }
 

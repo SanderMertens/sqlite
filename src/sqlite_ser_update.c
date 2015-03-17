@@ -173,9 +173,11 @@ error:
  */
 static cx_int16 serializeObject(cx_serializer s, cx_value* v, void* userData) {
     struct sqlite_ser *data = userData;
+    cx_id typeFullname;
     cx_id fullname;
-    cx_fullname(cx_valueType(v), fullname);
-    if (!cx_ser_appendstr(data, "UPDATE \"%s\" SET ", fullname)) {
+    cx_fullname(cx_valueType(v), typeFullname);
+    cx_fullname(cx_valueObject(v), fullname);
+    if (!cx_ser_appendstr(data, "UPDATE \"%s\" SET ", typeFullname)) {
         goto finished;
     }
     if (cx_valueType(v)->kind == CX_PRIMITIVE) {
@@ -186,7 +188,7 @@ static cx_int16 serializeObject(cx_serializer s, cx_value* v, void* userData) {
     if (cx_serializeValue(s, v, data)) {
         goto error;
     }
-    if (!cx_ser_appendstr(data, " WHERE \"ObjectId\"=NULL;")) {
+    if (!cx_ser_appendstr(data, " WHERE \"ObjectId\"='%s';", fullname)) {
         goto finished;
     }
     return 0;
@@ -205,8 +207,6 @@ struct cx_serializer_s sqlite_ser_update(cx_modifier access, cx_operatorKind acc
     s.traceKind = trace;
     s.reference = serializeReference;
     s.program[CX_PRIMITIVE] = serializePrimitive;
-    // s.program[CX_COMPOSITE] = serializeComposite;
-    // s.metaprogram[CX_ELEMENT] = serializeMember;
     s.metaprogram[CX_MEMBER] = serializeMember;
     s.metaprogram[CX_BASE] = serializeBase;
     s.metaprogram[CX_OBJECT] = serializeObject;

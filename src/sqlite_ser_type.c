@@ -214,7 +214,7 @@ static cx_int16 serializeObject(cx_serializer s, cx_value* v, void* userData) {
     cx_id fullname;
     cx_fullname(cx_valueType(v), fullname);
     if (!cx_ser_appendstr(data, "CREATE TABLE IF NOT EXISTS \"%s\""
-            " (\"ObjectId\" INTEGER",
+            " (\"ObjectId\" TEXT",
             fullname)) {
         goto finished;
     }
@@ -233,7 +233,7 @@ static cx_int16 serializeObject(cx_serializer s, cx_value* v, void* userData) {
             shouldSerialize = TRUE;
             break;
         default:
-            cx_warning("ok this is not nice");
+            cx_warning("-- Cannot serialize kind other than composite or primitive");
             break;
     }
     if (shouldSerialize) {
