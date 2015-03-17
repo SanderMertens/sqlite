@@ -19,7 +19,7 @@ struct cx_serializer_s sqlite_ser_define(cx_modifier access, cx_operatorKind acc
 struct cx_serializer_s sqlite_ser_update(cx_modifier access, cx_operatorKind accessKind, cx_serializerTraceKind trace);
 struct cx_serializer_s sqlite_ser_type(cx_modifier access, cx_operatorKind accessKind, cx_serializerTraceKind trace);
 
-size_t escsqlstr(char *out, size_t n, const char *in);
+size_t sqlite_ser_escsqlstr(char *out, size_t n, const char *in);
 
 /* Is the same value representation for any DML statement.
  * Should receive a NULL buffer that needs subsequent de-allocation.

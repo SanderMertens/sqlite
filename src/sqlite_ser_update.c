@@ -76,7 +76,7 @@ static cx_int16 serializePrimitive(cx_serializer s, cx_value *v, void *userData)
     CX_UNUSED(s);
     struct sqlite_ser *data = userData;
     cx_string buffer = NULL;
-    if (sqlite_ser_serializePrimitiveValue(v, buffer)) {
+    if (sqlite_ser_serializePrimitiveValue(v, &buffer)) {
         goto error;
     }
     if (!cx_ser_appendstr(data, "%s", buffer)) {

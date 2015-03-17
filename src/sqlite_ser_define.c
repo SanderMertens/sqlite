@@ -104,7 +104,6 @@ finished:
 
 static cx_int16 serializeMember(cx_serializer s, cx_value *v, void *userData) {
     struct sqlite_ser *data = userData;
-    printf("%s - %d\n", cx_nameof(v->is.member.t), data->itemCount);
     if (data->itemCount) {
         if (!cx_ser_appendstr(data, ", ")) {
             goto finished;
