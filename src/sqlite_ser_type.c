@@ -76,8 +76,44 @@ static cx_int16 serializePrimitive(cx_serializer s, cx_value *v, void *userData)
     CX_UNUSED(s);
     struct sqlite_ser *data = userData;
     switch (cx_primitive(cx_valueType(v))->kind) {
+        case CX_ALIAS:
+            if (!cx_ser_appendstr(data, "ALIAS")) {
+                goto finished;
+            }
+            cx_warning("-- CX_ALIAS not supported");
+            break;
+        case CX_BINARY:
+            if (!cx_ser_appendstr(data, "BINARY_INT NOT NULL")) {
+                goto finished;
+            }
+            break;
+        case CX_BITMASK:
+            if (!cx_ser_appendstr(data, "BITMASK_INT NOT NULL")) {
+                goto finished;
+            }
+            break;
+        case CX_BOOLEAN:
+            if (!cx_ser_appendstr(data, "BOOL NOT NULL")) {
+                goto finished;
+            }
+            break;
         case CX_CHARACTER:
-            if (!cx_ser_appendstr(data, "CHAR")) {
+            if (!cx_ser_appendstr(data, "CHAR NOT NULL")) {
+                goto finished;
+            }
+            break;
+        case CX_ENUM:
+            if (!cx_ser_appendstr(data, "ENUM_INT NOT NULL")) {
+                goto finished;
+            }
+            break;
+        case CX_FLOAT:
+            if (!cx_ser_appendstr(data, "FLOAT NOT NULL")) {
+                goto finished;
+            }
+            break;
+        case CX_INTEGER:
+            if (!cx_ser_appendstr(data, "INT NOT NULL")) {
                 goto finished;
             }
             break;
@@ -86,46 +122,10 @@ static cx_int16 serializePrimitive(cx_serializer s, cx_value *v, void *userData)
                 goto finished;
             }
             break;
-        case CX_BOOLEAN:
-            if (!cx_ser_appendstr(data, "BOOL")) {
-                goto finished;
-            }
-            break;
-        case CX_BITMASK:
-            if (!cx_ser_appendstr(data, "BITMASK_INT")) {
-                goto finished;
-            }
-            break;
-        case CX_BINARY:
-            if (!cx_ser_appendstr(data, "BINARY_INT")) {
-                goto finished;
-            }
-            break;
-        case CX_INTEGER:
-            if (!cx_ser_appendstr(data, "INT")) {
-                goto finished;
-            }
-            break;
         case CX_UINTEGER:
-            if (!cx_ser_appendstr(data, "UINT")) {
+            if (!cx_ser_appendstr(data, "UINT NOT NULL")) {
                 goto finished;
             }
-            break;
-        case CX_FLOAT:
-            if (!cx_ser_appendstr(data, "FLOAT")) {
-                goto finished;
-            }
-            break;
-        case CX_ENUM:
-            if (!cx_ser_appendstr(data, "ENUM_INT")) {
-                goto finished;
-            }
-            break;
-        case CX_ALIAS:
-            if (!cx_ser_appendstr(data, "ALIAS")) {
-                goto finished;
-            }
-            cx_warning("-- CX_ALIAS not supported");
             break;
     }
     return 0;
