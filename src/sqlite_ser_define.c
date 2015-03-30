@@ -162,7 +162,7 @@ static cx_int16 serializeObject(cx_serializer s, cx_value* v, void* userData) {
     cx_id fullname;
     cx_fullname(cx_valueType(v), typeFullname);
     cx_fullname(cx_valueObject(v), fullname);
-    if (!cx_ser_appendstr(data, "INSERT INTO \"%s\" VALUES ('%s', ", typeFullname, fullname)) {
+    if (!cx_ser_appendstr(data, "INSERT OR REPLACE INTO \"%s\" VALUES ('%s', ", typeFullname, fullname)) {
         goto finished;
     }
     if (cx_serializeValue(s, v, data)) {

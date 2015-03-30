@@ -74,19 +74,23 @@ static cx_int16 serializeObject(cx_serializer s, cx_value* v, void* userData) {
     struct sqlite_ser *data = userData;
     cx_id fullname;
     cx_id parentFullname;
+    cx_id typeFullname;
     if (cx_checkAttr(o, CX_ATTR_SCOPED)) {
         cx_fullname(cx_valueObject(v), fullname);
-        cx_fullname(cx_parentof(cx_valueObject(v)), parentFullname);
+        cx_fullname(cx_parentof(o), parentFullname);
     } else {
         strcpy(fullname, "NULL");
         strcpy(parentFullname, "NULL");
     }
+    cx_fullname(cx_typeof(o), typeFullname);
+    /* TODO ignore only for core objects, replace for others */
     if (!cx_ser_appendstr(data,
-            "INSERT INTO \"Objects\" (\"ObjectId\", \"Name\", \"Parent\") "
-            "VALUES ('%s', '%s', '%s');",
+            "INSERT OR IGNORE INTO \"Objects\" (\"ObjectId\", \"Name\", \"Parent\", \"Type\") "
+            "VALUES ('%s', '%s', '%s', '%s');",
             fullname,
             cx_nameof(o),
-            parentFullname
+            parentFullname,
+            typeFullname
         )) {
         goto finished;
     }
