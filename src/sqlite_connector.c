@@ -13,7 +13,11 @@
 #include <sqlite3.h>
 
 #include "cx_files.h"
+#include "cx_depresolver.h"
+
 #include "sqlite_ser.h"
+
+
 
 static cx_bool isBlacklisted(cx_object o) {
     cx_bool result = FALSE;
@@ -54,20 +58,70 @@ static cx_void bootstrapDatabase(sqlite_connector _this) {
     }
 }
 
+static int resolveDeclareAction(cx_object o, void *userData) {
+    CX_UNUSED(o);
+    CX_UNUSED(userData);
+    return 0;
+}
+
+static int resolveDefineAction(cx_object o, void *userData) {
+    CX_UNUSED(o);
+    CX_UNUSED(userData);
+    return 0;
+}
+
+static cx_equalityKind compareObjectId(cx_type _this, const void *o1, const void *o2) {
+    CX_UNUSED(_this);
+    int result = strcmp(o1, o2);
+    return result > 0 ? CX_GT : (result < 0 ? CX_LT : CX_EQ);
+}
+
+static void handleDependencies(cx_depresolver resolver, cx_rbtree tree,
+        const char *object, const char *parent, const char *type,
+        cx_uint8 parentState) {
+    char *_object, *_parent, *_type; 
+    if (!cx_rbtreeHasKey(tree, object, (void **)&_object)) {
+        _object = cx_malloc(strlen(object) + 1);
+        cx_rbtreeSet(tree, strcpy(_object, object), _object);
+    }
+    if (!cx_rbtreeHasKey(tree, parent, (void **)&_parent)) {
+        parent = cx_malloc(strlen(parent) + 1);
+        cx_rbtreeSet(tree, strcpy(_parent, parent), _parent);
+    }
+    if (!cx_rbtreeHasKey(tree, type, (void **)&_type)) {
+        type = cx_malloc(strlen(type) + 1);
+        cx_rbtreeSet(tree, strcpy(_type, type), _type);
+    }
+    printf("name=%s, parent=%s, type=%s, parentState=%d\n", _object, _parent, _type, parentState);
+    cx_depresolver_depend(resolver, _object, CX_DECLARED, _parent, parentState);
+    if (parentState == CX_DECLARED) {
+        cx_depresolver_depend(resolver, _parent, CX_DEFINED, _object, CX_DEFINED);
+    }
+    cx_depresolver_depend(resolver, _object, CX_DECLARED, _type, CX_DEFINED);
+}
+
 static cx_void restore(sqlite_connector _this) {
-    static const char const query[] = "SELECT \"ObjectId\", \"Name\", \"Parent\", \"Type\" "
-                                      "FROM Objects;";
+    static const char const query[] =
+        "SELECT Objects.ObjectId, Objects.Parent, Objects.Type, Type.ParentState "
+        "FROM Objects INNER JOIN "
+        "\"::cortex::lang::type\" AS Type ON Objects.Type = Type.ObjectId;"
+    cx_rbtree objects = cx_rbtreeNew_w_func(compareObjectId);
     sqlite3_stmt *stmt = NULL;
     int code;
+    cx_depresolver resolver = cx_depresolver__create(resolveDeclareAction, resolveDefineAction, NULL);
     if ((code = sqlite3_prepare_v2((sqlite3 *)_this->db, query, sizeof(query), &stmt, NULL)) != SQLITE_OK) {
         cx_error("could not prepare statement, error code = %s", code);
         goto error;
     }
     while ((code = sqlite3_step(stmt)) == SQLITE_ROW) {
-        const unsigned char *name = sqlite3_column_text(stmt, 1);
-        const unsigned char *parent = sqlite3_column_text(stmt, 2);
-        const unsigned char *type =sqlite3_column_text(stmt, 3);
-        printf("name=%s, parent=%s, type=%s\n", name, parent, type);
+        const char *object = (const char *)sqlite3_column_text(stmt, 0);
+        const char *parent = (const char *)sqlite3_column_text(stmt, 1);
+        const char *type = (const char *)sqlite3_column_text(stmt, 2);
+        cx_uint8 parentState = sqlite3_column_int(stmt, 3);
+        handleDependencies(resolver, objects, object, parent, type, parentState);       
+    }
+    if (cx_depresolver_walk(resolver)) {
+        cx_error("could not resolve dependencies from database");
     }
     if (code != SQLITE_DONE) {
         cx_error("could not finish restoring database");
@@ -97,7 +151,7 @@ cx_int16 sqlite_connector_construct(sqlite_connector _this) {
         sqlite3_free(errmsg);
     }
     bootstrapDatabase(_this);
-    restore(_this);
+    //restore(_this);
     sqlite_connector_onDeclare_o->mask = CX_ON_DECLARE | CX_ON_SCOPE | CX_ON_SELF;
     sqlite_connector_onDefine_o->mask = CX_ON_DEFINE | CX_ON_SCOPE | CX_ON_SELF;
     sqlite_connector_onUpdate_o->mask = CX_ON_UPDATE | CX_ON_SCOPE | CX_ON_SELF;
@@ -121,7 +175,6 @@ cx_void sqlite_connector_destruct(sqlite_connector _this) {
 /* ::cortex::sqlite::connector::onDeclare() */
 cx_void sqlite_connector_onDeclare(sqlite_connector _this, cx_object *observable, cx_object *source) {
 /* $begin(::cortex::sqlite::connector::onDeclare) */
-    CX_UNUSED(_this);
     CX_UNUSED(observable);
     char *errmsg = NULL;
     /* TODO run dependency algorithm */
