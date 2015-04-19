@@ -9,7 +9,7 @@
 #include "sqlite_ser.h"
 
 /*
- * https://www.sqlite.org/lang_update.html
+ * https://www.sqlite.org/lang_insert.html
  */
 
 /* agreed not to change anything except the first argument of the signature */
