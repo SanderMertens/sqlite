@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Casting macro's for classes */
-#define sqlite_connector(o) ((sqlite_connector)o)
+#define sqlite_connector(o) ((sqlite_connector)cx_assertType((cx_type)sqlite_connector_o, o))
 
 /* Type definitions */
 CX_LIST(cx_event_list);
