@@ -5,5 +5,5 @@ CREATE TABLE IF NOT EXISTS "Objects" (
     "Name" TEXT,
     "Parent" TEXT,
     "Type" TEXT,
-    "State" INTEGER,
+    "State" INTEGER
 );

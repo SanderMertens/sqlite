@@ -84,8 +84,8 @@ static cx_int16 serializeObject(cx_serializer s, cx_value* v, void* userData) {
     }
     cx_fullname(cx_typeof(o), typeFullname);
     if (!cx_ser_appendstr(data,
-            "INSERT OR IGNORE INTO \"Objects\" (\"ObjectId\", \"Name\", \"Parent\", \"Type\", \"\") "
-            "VALUES ('%s', '%s', '%s', '%s', '%d');",
+            "INSERT OR IGNORE INTO \"Objects\" (\"ObjectId\", \"Name\", \"Parent\", \"Type\", \"State\") "
+            "VALUES ('%s', '%s', '%s', '%s', %d);",
             fullname,
             cx_nameof(o),
             parentFullname,
