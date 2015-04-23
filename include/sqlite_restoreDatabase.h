@@ -1,4 +1,5 @@
 #include "cx.h"
+#include "sqlite_depInfo.h"
 
 int sqlite_resolveDeclareAction(cx_object o, void *userData);
 
@@ -10,9 +11,7 @@ cx_equalityKind sqlite_compareObjectId(cx_type _this, const void *o1, const void
 /*
  * Stores a copy of the object's, parent's, and type's fullnames. Returns the copy.
  */
-void sqlite_storeDependencies(cx_rbtree tree,
-    const char *object, const char *parent, const char *type,
-    char **outObject, char **outParent, char **outType);
+void sqlite_storeRow(cx_rbtree tree, const sqlite_depInfo *in, sqlite_depInfo *out);
 
 /*
  * Sets the dependencies between an object, its parent, and its type.
@@ -20,3 +19,5 @@ void sqlite_storeDependencies(cx_rbtree tree,
 void sqlite_setDependencies(cx_depresolver resolver, cx_rbtree tree,
         const char *object, const char *parent, const char *type,
         cx_uint8 parentState);
+
+void sqlite_restoreRow(const sqlite_depInfo row);

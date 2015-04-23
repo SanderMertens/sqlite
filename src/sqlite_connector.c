@@ -62,7 +62,7 @@ static int bootstrapDatabase(sqlite_connector _this) {
     bootstrap = cx_fileLoad(bootstrapPath);
     cx_dealloc(bootstrapPath);
     if (sqlite3_exec((sqlite3 *)_this->db, "BEGIN;", NULL, NULL, &errmsg) != SQLITE_OK) {
-        cx_error(errmsg);
+        cx_error("%s", errmsg);
         sqlite3_free(errmsg);
         goto error_bootstrap;
     }
@@ -72,7 +72,7 @@ static int bootstrapDatabase(sqlite_connector _this) {
         goto error_bootstrap;
     }
     if (sqlite3_exec((sqlite3 *)_this->db, "COMMIT;", NULL, NULL, &errmsg) != SQLITE_OK) {
-        cx_error(errmsg);
+        cx_error("%s", errmsg);
         sqlite3_free(errmsg);
         goto error_bootstrap;
     }
@@ -89,34 +89,17 @@ error:
     return 1;
 }
 
-static int checkTypeTable(sqlite3 *db) {
-    static const char const *typeTableQuery = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='::cortex::lang::type';"
-    int code;
-    sqlite3_stmt *stmt = NULL;
-    if ((code = sqlite3_prepare_v2((sqlite3 *)db, typeTableQuery, sizeof(typeTableQuery), &stmt, NULL)) != SQLITE_OK) {
-        cx_error("could not check existance of table \"::cortex::lang::type\"");
-        goto error;
-    }
-    if ((code = sqlite3_step(stmt)) != SQLITE_DONE) {
-        cx_error("could not finish checking existance of table \"::cortex::lang::type\"")
-    }
-
-    return 0;
-error:
-    return 1;
-}
-
 static int restoreDatabase(sqlite_connector _this) {
-    static const char const *retrieveQuery[] = "SELECT Objects.ObjectId, Objects.Parent, Objects.Type, Type.ParentState FROM Objects INNER JOIN \"::cortex::lang::type\" AS Type ON Objects.Type = Type.ObjectId;";
+    static const char *retrieveQuery = "SELECT ObjectId, Parent, Type, State FROM Objects;";
     int code;
+    // Do I need to dispose of this object?
     cx_rbtree objects = cx_rbtreeNew_w_func(sqlite_compareObjectId);
     sqlite3_stmt *stmt = NULL;
     cx_depresolver resolver = cx_depresolver__create(
         sqlite_resolveDeclareAction, sqlite_resolveDefineAction, NULL);
-    code = sqlite3_prepare_v2((sqlite3 *)_this->db, retrieveQuery, sizeof(retrieveQuery), &stmt, NULL)
-    if (code == SQLITE_ERROR) {
-
-    } else if (code != SQLITE_OK) {
+    CX_UNUSED(resolver);
+    code = sqlite3_prepare_v2((sqlite3 *)_this->db, retrieveQuery, sizeof(retrieveQuery), &stmt, NULL);
+    if (code != SQLITE_OK) {
         cx_error("could not prepare statement, error code = %d", code);
         goto error;
     }
@@ -124,13 +107,14 @@ static int restoreDatabase(sqlite_connector _this) {
         const char *_object = (const char *)sqlite3_column_text(stmt, 0);
         const char *_parent = (const char *)sqlite3_column_text(stmt, 1);
         const char *_type = (const char *)sqlite3_column_text(stmt, 2);
-        // cx_uint8 parentState = sqlite3_column_int(stmt, 3);
-        char *object, *parent, *type;
-        sqlite_storeDependencies(objects, _object, _parent, _type, &object, &parent, &type);
-        sqlite_setDependencies(resolver, objects, object, parent, type, parentState);       
-    }
-    if (cx_depresolver_walk(resolver)) {
-        cx_error("could not resolve dependencies from database");
+        int state = sqlite3_column_int(stmt, 3);
+        sqlite_depInfo depInfoIn = {_object, _parent, _type, state};
+        sqlite_depInfo depInfoOut;
+        sqlite_storeRow(objects, &depInfoIn, &depInfoOut);
+        sqlite_restoreRow(depInfoOut);
+        // retrieve parent state
+        // sqlite_setDependencies(resolver, objects, object, parent, type, CX_DECLARED);
+
     }
     if (code != SQLITE_DONE) {
         cx_error("could not finish restoring database");
@@ -140,7 +124,9 @@ static int restoreDatabase(sqlite_connector _this) {
         cx_critical("could not finalize statement");
         goto error;
     }
-finish:
+    // if (cx_depresolver_walk(resolver)) {
+    //     cx_error("could not resolve dependencies from database");
+    // }
     return 0;
 error:
     return 1;

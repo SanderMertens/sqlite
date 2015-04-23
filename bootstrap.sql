@@ -4,5 +4,6 @@ CREATE TABLE IF NOT EXISTS "Objects" (
     "ObjectId" TEXT PRIMARY KEY,
     "Name" TEXT,
     "Parent" TEXT,
-    "Type" TEXT
+    "Type" TEXT,
+    "State" INTEGER,
 );
