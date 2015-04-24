@@ -39,7 +39,7 @@ static cx_bool isCore(cx_object o) {
     return result;
 }
 
-static int bootstrapDatabase(sqlite_connector _this) {
+static int bootstrapDatabase(sqlite3 *db) {
     char *sqliteHome;
     int length;
     char *bootstrapPath;
@@ -61,18 +61,18 @@ static int bootstrapDatabase(sqlite_connector _this) {
     }
     bootstrap = cx_fileLoad(bootstrapPath);
     cx_dealloc(bootstrapPath);
-    if (sqlite3_exec((sqlite3 *)_this->db, "BEGIN;", NULL, NULL, &errmsg) != SQLITE_OK) {
-        cx_error("%s", errmsg);
+    if (sqlite3_exec(db, "BEGIN;", NULL, NULL, &errmsg) != SQLITE_OK) {
+        cx_error("error opening transaction: %s", errmsg);
         sqlite3_free(errmsg);
         goto error_bootstrap;
     }
-    if (sqlite3_exec((sqlite3 *)_this->db, bootstrap, NULL, NULL, &errmsg) != SQLITE_OK) {
-        cx_critical("%s", errmsg);
+    if (sqlite3_exec(db, bootstrap, NULL, NULL, &errmsg) != SQLITE_OK) {
+        cx_critical("error bootstrapping database: %s", errmsg);
         sqlite3_free(errmsg);
         goto error_bootstrap;
     }
-    if (sqlite3_exec((sqlite3 *)_this->db, "COMMIT;", NULL, NULL, &errmsg) != SQLITE_OK) {
-        cx_error("%s", errmsg);
+    if (sqlite3_exec(db, "COMMIT;", NULL, NULL, &errmsg) != SQLITE_OK) {
+        cx_error("error closing transaction: %s", errmsg);
         sqlite3_free(errmsg);
         goto error_bootstrap;
     }
@@ -89,7 +89,7 @@ error:
     return 1;
 }
 
-static int restoreDatabase(sqlite_connector _this) {
+static int restoreDatabase(sqlite3 *db) {
     static const char *retrieveQuery = "SELECT ObjectId, Parent, Type, State FROM Objects;";
     int code;
     // Do I need to dispose of this object?
@@ -98,34 +98,34 @@ static int restoreDatabase(sqlite_connector _this) {
     cx_depresolver resolver = cx_depresolver__create(
         sqlite_resolveDeclareAction, sqlite_resolveDefineAction, NULL);
     CX_UNUSED(resolver);
-    code = sqlite3_prepare_v2((sqlite3 *)_this->db, retrieveQuery, sizeof(retrieveQuery), &stmt, NULL);
+    code = sqlite3_prepare_v2(db, retrieveQuery, strlen(retrieveQuery) + 1, &stmt, NULL);
     if (code != SQLITE_OK) {
-        cx_error("could not prepare statement, error code = %d", code);
+        cx_error("cannot prepare statement, error code %d", code);
         goto error;
     }
     while ((code = sqlite3_step(stmt)) == SQLITE_ROW) {
-        const char *_object = (const char *)sqlite3_column_text(stmt, 0);
-        const char *_parent = (const char *)sqlite3_column_text(stmt, 1);
-        const char *_type = (const char *)sqlite3_column_text(stmt, 2);
+        char *_object = (char *)sqlite3_column_text(stmt, 0);
+        char *_parent = (char *)sqlite3_column_text(stmt, 1);
+        char *_type = (char *)sqlite3_column_text(stmt, 2);
         int state = sqlite3_column_int(stmt, 3);
         sqlite_depInfo depInfoIn = {_object, _parent, _type, state};
         sqlite_depInfo depInfoOut;
         sqlite_storeRow(objects, &depInfoIn, &depInfoOut);
-        sqlite_restoreRow(depInfoOut);
-        // retrieve parent state
+        sqlite_restoreRow(db, &depInfoOut);
         // sqlite_setDependencies(resolver, objects, object, parent, type, CX_DECLARED);
 
     }
     if (code != SQLITE_DONE) {
-        cx_error("could not finish restoring database");
+        cx_error("cannot finish restoring database, code %d", code);
+        sqlite3_finalize(stmt);
         goto error;
     }
     if (sqlite3_finalize(stmt) != SQLITE_OK) {
-        cx_critical("could not finalize statement");
+        cx_critical("cannot finalize statement");
         goto error;
     }
     // if (cx_depresolver_walk(resolver)) {
-    //     cx_error("could not resolve dependencies from database");
+    //     cx_error("cannot resolve dependencies from database");
     // }
     return 0;
 error:
@@ -140,19 +140,20 @@ cx_int16 sqlite_connector_construct(sqlite_connector _this) {
     if (!cx_fileTest(_this->filename)) {
         cx_touch(_this->filename);
     }
-    if (sqlite3_open(_this->filename, (sqlite3 **)&(_this->db)) != SQLITE_OK) {
-        cx_error("%s", sqlite3_errmsg((sqlite3 *)_this->db));
+    if (sqlite3_open(_this->filename, (sqlite3 **)&_this->db) != SQLITE_OK) {
+        cx_error("cannot open database: %s", sqlite3_errmsg((sqlite3 *)_this->db));
     }
-    if (sqlite3_exec((sqlite3 *)_this->db, "PRAGMA foreign_keys = OFF;", NULL, NULL, &errmsg) != SQLITE_OK) {
-        cx_error(errmsg);
+    sqlite3 *db = (sqlite3 *)_this->db;
+    if (sqlite3_exec(db, "PRAGMA foreign_keys = OFF;", NULL, NULL, &errmsg) != SQLITE_OK) {
+        cx_error("cannot turn off foreign keys: %s", errmsg);
         sqlite3_free(errmsg);
     }
-    if (bootstrapDatabase(_this)) {
-        cx_error("database could not be bootstrapped");
+    if (bootstrapDatabase(db)) {
+        cx_error("database cannot be bootstrapped");
         goto error;
     }
-    if (restoreDatabase(_this)) {
-        cx_error("database could not be restored");
+    if (restoreDatabase(db)) {
+        cx_error("database cannot be restored");
         goto error;
     }
     sqlite_connector_onDeclare_o->mask = CX_ON_DECLARE | CX_ON_SCOPE | CX_ON_SELF;
@@ -181,16 +182,14 @@ cx_void sqlite_connector_destruct(sqlite_connector _this) {
 cx_void sqlite_connector_onDeclare(sqlite_connector _this, cx_object *observable, cx_object *source) {
 /* $begin(::cortex::sqlite::connector::onDeclare) */
     CX_UNUSED(observable);
-    char *errmsg = NULL;
-    {
+    sqlite3 *db = (sqlite3 *)_this->db;
+    if (!isCore(source)) {
         struct cx_serializer_s serializer = sqlite_ser_declare(CX_PRIVATE, CX_NOT, CX_SERIALIZER_TRACE_NEVER);
         struct sqlite_ser data = {NULL, NULL, 0, 0, 0, 0};
         cx_serialize(&serializer, source, &data);
         cx_debug(data.buffer);
-        if (sqlite3_exec((sqlite3 *)_this->db, data.buffer, NULL, NULL, &errmsg) != SQLITE_OK) {
-            cx_error((char *)sqlite3_errmsg((sqlite3 *)_this->db));
-            cx_error(errmsg);
-            sqlite3_free(errmsg);
+        if (sqlite3_exec(db, data.buffer, NULL, NULL, NULL) != SQLITE_OK) {
+            cx_error("%s", (char *)sqlite3_errmsg(db));
         }
     }
     if (isCore(source) && cx_instanceof(cx_type(cx_type_o), source)) {
@@ -199,10 +198,8 @@ cx_void sqlite_connector_onDeclare(sqlite_connector _this, cx_object *observable
             struct sqlite_ser data = {NULL, NULL, 0, 0, 0, 0};
             cx_metaWalk(&serializer, cx_type(source), &data);
             cx_debug(data.buffer);
-            if (sqlite3_exec((sqlite3 *)_this->db, data.buffer, NULL, NULL, &errmsg) != SQLITE_OK) {
-                cx_error((char *)sqlite3_errmsg((sqlite3 *)_this->db));
-                cx_error(errmsg);
-                sqlite3_free(errmsg);
+            if (sqlite3_exec(db, data.buffer, NULL, NULL, NULL) != SQLITE_OK) {
+                cx_error("%s", (char *)sqlite3_errmsg(db));
             }
         }
     }
@@ -212,18 +209,18 @@ cx_void sqlite_connector_onDeclare(sqlite_connector _this, cx_object *observable
 /* ::cortex::sqlite::connector::onDefine() */
 cx_void sqlite_connector_onDefine(sqlite_connector _this, cx_object *observable, cx_object *source) {
 /* $begin(::cortex::sqlite::connector::onDefine) */
-    CX_UNUSED(_this);
     CX_UNUSED(source);
+    sqlite3 *db = (sqlite3 *)_this->db;
     char *errmsg;
-    // if (!isCore(observable)) {
+    if (!isCore(observable)) {
         if (cx_instanceof(cx_type(cx_type_o), observable)) {
             struct cx_serializer_s serializer = sqlite_ser_type(CX_PRIVATE, CX_NOT, CX_SERIALIZER_TRACE_NEVER);
             struct sqlite_ser data = {NULL, NULL, 0, 0, 0, 0};
             cx_metaWalk(&serializer, cx_type(observable), &data);
             cx_debug("%s\n", data.buffer);
-            if (sqlite3_exec((sqlite3 *)_this->db, data.buffer, NULL, NULL, &errmsg) != SQLITE_OK) {
-                cx_error((char *)sqlite3_errmsg((sqlite3 *)_this->db));
-                cx_error(errmsg);
+            if (sqlite3_exec(db, data.buffer, NULL, NULL, &errmsg) != SQLITE_OK) {
+                cx_error("cannot define type in database: %s", (char *)sqlite3_errmsg(db));
+                cx_error("cannot define type in database", errmsg);
                 sqlite3_free(errmsg);
             }
         } else if (cx_typeof(observable)->kind != CX_VOID) {
@@ -231,13 +228,13 @@ cx_void sqlite_connector_onDefine(sqlite_connector _this, cx_object *observable,
             struct sqlite_ser data = {NULL, NULL, 0, 0, 0, 0};
             cx_serialize(&serializer, observable, &data);
             cx_debug("%s\n", data.buffer);
-            if (sqlite3_exec((sqlite3 *)_this->db, data.buffer, NULL, NULL, &errmsg) != SQLITE_OK) {
-                cx_error((char *)sqlite3_errmsg((sqlite3 *)_this->db));
-                cx_error(errmsg);
+            if (sqlite3_exec(db, data.buffer, NULL, NULL, &errmsg) != SQLITE_OK) {
+                cx_error("cannot define type in database: %s", (char *)sqlite3_errmsg(db));
+                cx_error("cannot define type in database", errmsg);
                 sqlite3_free(errmsg);
             }
         }
-    // }
+    }
 /* $end */
 }
 

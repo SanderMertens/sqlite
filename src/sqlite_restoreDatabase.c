@@ -81,23 +81,6 @@ error:
     return 0;
 }
 
-static int storeNewest(sqlite3 *db, cx_object object, const sqlite_depInfo *dbObj) {
-    /*
-     * storeObj
-     */
-    CX_UNUSED(db);
-    CX_UNUSED(object);
-    CX_UNUSED(dbObj);
-    return 0;
-}
-
-static int dbNewest(const sqlite3 *db, cx_object object, const sqlite_depInfo *dbObj) {
-    CX_UNUSED(db);
-    CX_UNUSED(object);
-    CX_UNUSED(dbObj);
-    return 0;
-}
-
 static cx_bool sameTypes(const cx_object object, const char *dbType, char *storeTypeFullname) {
     cx_object storeType = cx_typeof(object);
     cx_fullname(storeType, storeTypeFullname);

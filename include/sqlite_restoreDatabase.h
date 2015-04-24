@@ -20,4 +20,4 @@ void sqlite_setDependencies(cx_depresolver resolver, cx_rbtree tree,
         const char *object, const char *parent, const char *type,
         cx_uint8 parentState);
 
-void sqlite_restoreRow(const sqlite_depInfo row);
+void sqlite_restoreRow(sqlite3 *db, const sqlite_depInfo *row);
