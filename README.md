@@ -22,11 +22,12 @@ Now, from this project's folder, run `make`.
 
 ## Test
 
+Note: the testfiles should be created outside the sqlite directory.
+
 The current workflow is
 
 ```
 // testclasses.cx
-
 
 enum DogBreed:: Golden, Shiba, Xoloitzcuintle
 
@@ -55,15 +56,16 @@ string human: "Ada"::
 Dog johnny: "Johnny", 4, DogBreed::Shiba, DogMood::Cuddly|DogMood::Playful
 Dog enrique: "Enrique", 10, DogBreed::Golden, DogMood::Playful|DogMood::Kinky|DogMood::Cuddly
 ```
+
+```
 // test2.cx db->store
 
 sqlite::connector connector: "test.db"
-
 ```
 
 And then run :
 
 ```
-cortex sqlite testdef test1
-cortex sqlite testdef test2
+cortex testdef test1
+cxsh testdef test2
 ```
