@@ -68,7 +68,7 @@ cx_int16 sqlite_ser_serializePrimitiveValue(cx_value *v, cx_string *buffer) {
             break;
         case CX_BOOLEAN:
             *buffer = cx_malloc(sizeof("1"));
-            (*buffer)[0] = (*((cx_bool *)v)) ? '1' : '0';
+            (*buffer)[0] = (*((cx_bool *)value)) ? '1' : '0';
             (*buffer)[1] = '\0';
             errors = 0;
             break;
