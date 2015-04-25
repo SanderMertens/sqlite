@@ -52,9 +52,8 @@ string human: "Ada"::
             int16 finger: 2
     uint64 rightLeg: 555
 
-Dog doge: "Johnny", 4, DogBreed::Shiba, DogMood::Cuddly|DogMood::Playful
-Dog bon: "Enrique", 10, DogBreed::Golden, DogMood::Playful|DogMood::Kinky|DogMood::Cuddly
-
+Dog johnny: "Johnny", 4, DogBreed::Shiba, DogMood::Cuddly|DogMood::Playful
+Dog enrique: "Enrique", 10, DogBreed::Golden, DogMood::Playful|DogMood::Kinky|DogMood::Cuddly
 ```
 // test2.cx db->store
 
