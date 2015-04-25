@@ -90,7 +90,7 @@ static cx_int16 serializeObject(cx_serializer s, cx_value* v, void* userData) {
             cx_nameof(o),
             parentFullname,
             typeFullname,
-            cx_getState(o)
+            cx_stateof(o)
         )) {
         goto finished;
     }

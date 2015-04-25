@@ -168,7 +168,11 @@ static cx_int16 serializeObject(cx_serializer s, cx_value* v, void* userData) {
     if (cx_serializeValue(s, v, data)) {
         goto error;        
     }
-    if (!cx_ser_appendstr(data, ");")) {
+    if (!cx_ser_appendstr(data, ");\n")) {
+        goto finished;
+    }
+    cx_int8 state = cx_stateof(cx_valueObject(v));
+    if (!cx_ser_appendstr(data, "UPDATE \"Objects\" SET \"State\" = %d WHERE \"ObjectId\" = '%s';", state, fullname)) {
         goto finished;
     }
     return 0;

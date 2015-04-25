@@ -16,28 +16,11 @@
 #include "cx_files.h"
 #include "cx_depresolver.h"
 
-#include "sqlite_ser.h"
 #include "sqlite_restoreDatabase.h"
-
+#include "sqlite_ser.h"
+#include "sqlite_util.h"
 
 const char *bootstrapFilename = "bootstrap.sql";
-
-
-static cx_bool isCore(cx_object o) {
-    cx_bool result = FALSE;
-    if (o == root_o) {
-        result = TRUE;
-    } else if (cx_checkAttr(o, CX_ATTR_SCOPED)) {
-        cx_object p = o;
-        while ((p = cx_parentof(p)) != root_o) {
-            if (p == cortex_o) {
-                result = TRUE;
-                break;
-            }
-        }
-    }
-    return result;
-}
 
 static int bootstrapDatabase(sqlite3 *db) {
     char *sqliteHome;
@@ -89,48 +72,6 @@ error:
     return 1;
 }
 
-static int restoreDatabase(sqlite3 *db) {
-    static const char *retrieveQuery = "SELECT ObjectId, Parent, Type, State FROM Objects;";
-    int code;
-    // Do I need to dispose of this object?
-    cx_rbtree objects = cx_rbtreeNew_w_func(sqlite_compareObjectId);
-    sqlite3_stmt *stmt = NULL;
-    cx_depresolver resolver = cx_depresolver__create(
-        sqlite_resolveDeclareAction, sqlite_resolveDefineAction, NULL);
-    CX_UNUSED(resolver);
-    code = sqlite3_prepare_v2(db, retrieveQuery, strlen(retrieveQuery) + 1, &stmt, NULL);
-    if (code != SQLITE_OK) {
-        cx_error("cannot prepare statement, error code %d", code);
-        goto error;
-    }
-    while ((code = sqlite3_step(stmt)) == SQLITE_ROW) {
-        char *_object = (char *)sqlite3_column_text(stmt, 0);
-        char *_parent = (char *)sqlite3_column_text(stmt, 1);
-        char *_type = (char *)sqlite3_column_text(stmt, 2);
-        int state = sqlite3_column_int(stmt, 3);
-        sqlite_depInfo depInfoIn = {_object, _parent, _type, state};
-        sqlite_depInfo depInfoOut;
-        sqlite_storeRow(objects, &depInfoIn, &depInfoOut);
-        sqlite_restoreRow(db, &depInfoOut);
-        // sqlite_setDependencies(resolver, objects, object, parent, type, CX_DECLARED);
-
-    }
-    if (code != SQLITE_DONE) {
-        cx_error("cannot finish restoring database, code %d", code);
-        sqlite3_finalize(stmt);
-        goto error;
-    }
-    if (sqlite3_finalize(stmt) != SQLITE_OK) {
-        cx_critical("cannot finalize statement");
-        goto error;
-    }
-    // if (cx_depresolver_walk(resolver)) {
-    //     cx_error("cannot resolve dependencies from database");
-    // }
-    return 0;
-error:
-    return 1;
-}
 /* $end */
 
 /* ::cortex::sqlite::connector::construct() */
@@ -152,7 +93,7 @@ cx_int16 sqlite_connector_construct(sqlite_connector _this) {
         cx_error("database cannot be bootstrapped");
         goto error;
     }
-    if (restoreDatabase(db)) {
+    if (sqlite_restoreDatabase(db)) {
         cx_error("database cannot be restored");
         goto error;
     }

@@ -1,3 +1,7 @@
+
+#ifndef SQLITE_SER_H
+#define SQLITE_SER_H
+
 #include <stdio.h>
 
 #include "cortex.h"
@@ -26,3 +30,5 @@ size_t sqlite_ser_escsqlstr(char *out, size_t n, const char *in);
  */
 cx_int16 sqlite_ser_serializePrimitiveValue(cx_value *v, cx_string *buffer);
 cx_int16 sqlite_ser_serializeReferenceValue(cx_value *v, cx_string *buffer);
+
+#endif /* SQLITE_SER_H */
