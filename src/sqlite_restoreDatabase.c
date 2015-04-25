@@ -30,7 +30,7 @@ static cx_equalityKind sqlite_compareObjectId(cx_type _this, const void *o1, con
     return result > 0 ? CX_GT : (result < 0 ? CX_LT : CX_EQ);
 }
 
-static void sqlite_storeRow(cx_rbtree tree, const sqlite_depInfo *in, sqlite_depInfo *out) {
+static void sqlite_storeObjectsRowNames(cx_rbtree tree, const sqlite_depInfo *in, sqlite_depInfo *out) {
     char *outObject, *outName, *outParent, *outType;
     if (!cx_rbtreeHasKey(tree, in->object, (void **)&outObject)) {
         outObject = cx_malloc(strlen(in->object) + 1);
@@ -55,20 +55,6 @@ static void sqlite_storeRow(cx_rbtree tree, const sqlite_depInfo *in, sqlite_dep
     sqlite_depInfo info = {outObject, outName, outParent, outType, in->state};
     *out = info;
 }
-
-// static void sqlite_setDependencies(cx_depresolver resolver,
-//         const char *object, const char *parent, const char *type,
-//         cx_uint8 parentState) {
-//     printf("name=%s, parent=%s, type=%s, parentState=%d\n", object, parent, type, parentState);
-//     /* TODO remove cast */
-//     cx_depresolver_depend(resolver, (void *)object, CX_DECLARED, (void *)parent, parentState);
-//     if (parentState == CX_DECLARED) {
-//         /* TODO remove cast */
-//         cx_depresolver_depend(resolver, (void *)parent, CX_DEFINED, (void *)object, CX_DEFINED);
-//     }
-//     /* TODO remove cast */
-//     cx_depresolver_depend(resolver, (void *)object, CX_DECLARED, (void *)type, CX_DEFINED);
-// }
 
 static cx_bool tableExists(sqlite3 *db, const char *type) {
     static const char *typeTableQuery = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?;";
@@ -173,7 +159,7 @@ finalize:
     return 1;
 }
 
-static int sqlite_restoreRow(sqlite3 *db, const sqlite_depInfo *info) {
+static int sqlite_storeRow(sqlite3 *db, const sqlite_depInfo *info) {
     cx_object storeObj;
     if ((storeObj = cx_resolve(NULL, (char *)info->object))) {
         if (!isCore(storeObj)) {
@@ -197,6 +183,7 @@ static int sqlite_restoreRow(sqlite3 *db, const sqlite_depInfo *info) {
                 if (tableExists(db, info->type)) {
                     printf("table exists!\n");
                     retrieveObject(db, info, o);
+                    cx_define(o);
                 } else {
                     cx_error("cannot define object %s;"
                         " no table exists for the type %s",
@@ -213,6 +200,12 @@ static int sqlite_restoreRow(sqlite3 *db, const sqlite_depInfo *info) {
     return 0;
 error:
     return 1;
+}
+
+static int sqlite_freeTree(void *o, void *data) {
+    CX_UNUSED(data);
+    cx_dealloc(o);
+    return 0;
 }
 
 int sqlite_restoreDatabase(sqlite3 *db) {
@@ -237,8 +230,8 @@ int sqlite_restoreDatabase(sqlite3 *db) {
         int state = sqlite3_column_int(stmt, 4);
         sqlite_depInfo depInfoIn = {_object, _name, _parent, _type, state};
         sqlite_depInfo depInfoOut;
-        sqlite_storeRow(objects, &depInfoIn, &depInfoOut);
-        sqlite_restoreRow(db, &depInfoOut);
+        sqlite_storeObjectsRowNames(objects, &depInfoIn, &depInfoOut);
+        sqlite_storeRow(db, &depInfoOut);
     }
     if (code != SQLITE_DONE) {
         cx_error("cannot finish restoring database, code %d", code);
@@ -249,7 +242,9 @@ int sqlite_restoreDatabase(sqlite3 *db) {
         cx_critical("cannot finalize statement");
         goto error;
     }
+    cx_rbtreeWalk(objects, sqlite_freeTree, NULL);
     return 0;
 error:
+    cx_rbtreeWalk(objects, sqlite_freeTree, NULL);
     return 1;
 }
